@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 
+import fotoPahawang1 from '../assets/gambar1.jpg';
+import fotoPahawang2 from '../assets/gambar2.jpg';
+import fotoPahawang3 from '../assets/gambar3.jpg';
+
 export default function LandingPage() {
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
   
   const pahawangImages = [
-    "https://images.pexels.com/photos/1450361/pexels-photo-1450361.jpeg?auto=compress&cs=tinysrgb&w=1920", // Pantai 1
-    "https://images.pexels.com/photos/3155666/pexels-photo-3155666.jpeg?auto=compress&cs=tinysrgb&w=1920", // Laut Tropis 2
-    "https://images.pexels.com/photos/1591373/pexels-photo-1591373.jpeg?auto=compress&cs=tinysrgb&w=1920", // Pulau 3
-    "https://images.pexels.com/photos/3225528/pexels-photo-3225528.jpeg?auto=compress&cs=tinysrgb&w=1920", // Snorkeling 4
-    "https://images.pexels.com/photos/1450363/pexels-photo-1450363.jpeg?auto=compress&cs=tinysrgb&w=1920"  // Pasir Putih 5
+    fotoPahawang1,
+    fotoPahawang2,
+    fotoPahawang3,
   ];
 
   const [currentBgIndex, setCurrentBgIndex] = useState(0);
@@ -99,19 +101,15 @@ export default function LandingPage() {
               />
             </div>
           ))}
-          <div className="absolute inset-0 bg-[#0F172A]/50 z-[5]"></div> 
-        </div>
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0F172A]/30 via-[#0F172A]/60 to-[#0F172A]/90 z-[5]"></div>        </div>
         
         <div className="relative z-10 w-full max-w-4xl px-6 text-center mt-20">
-            <span className="inline-block py-1.5 px-4 rounded-full bg-white/20 text-white text-xs font-bold tracking-widest uppercase mb-6 shadow-sm border border-white/10 backdrop-blur-sm">
-              Surga Tersembunyi di Pesawaran
-            </span>
-            
-            <h2 className="text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter mb-6 drop-shadow-lg">
+
+            <h2 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white leading-[1.1] tracking-tight mb-6 drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)]">
               Eksplorasi Keindahan <br className="hidden md:block"/> Bawah Laut Pahawang.
             </h2>
-            
-            <p className="text-base md:text-lg text-blue-50/90 font-medium mb-12 max-w-2xl mx-auto drop-shadow-md">
+
+            <p className="text-base md:text-lg text-white/90 font-normal mb-12 max-w-2xl mx-auto drop-shadow-lg leading-relaxed">
               Sistem reservasi digital terpadu untuk liburan anti ribet. Booking villa terapung, sewa perahu wisata, hingga paket snorkeling dalam satu genggaman.
             </p>
             

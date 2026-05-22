@@ -12,8 +12,7 @@ app.post('/api/tokenize', async (req, res) => {
     
     let grossAmount = req.body?.gross_amount || 1265000;
 
-    // Server Key SESUAI SCREENSHOT
-const serverKey = "RAHASIA_NEGARA";    
+const serverKey = "RAHASIA_NEGARA";
     const authString = Buffer.from(serverKey + ':').toString('base64');
     const randomOrderId = "PHW-" + Math.floor(Math.random() * 1000000);
 
