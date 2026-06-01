@@ -25,42 +25,28 @@ pool.connect()
 
 app.post('/api/tokenize', async (req, res) => {
     try {
-        console.log("Menerima request checkout...");
-        let grossAmount = req.body?.gross_amount || 1265000;
-        
-        const serverKey = "Mid-server-QWKNb8k3lHs7d2hYn8dUOM3j".trim();    
-        const authString = Buffer.from(serverKey + ':').toString('base64');
-        const randomOrderId = "PHW-" + Math.floor(Math.random() * 1000000);
-        
-        const payload = { 
-          transaction_details: { 
-            order_id: randomOrderId, 
-            gross_amount: Number(grossAmount) 
-          } 
+        let snap = new midtransClient.Snap({
+            isProduction : false, 
+            serverKey : 'Mid-server-QWKNb8k3lHs7d2hYn8dUOM3j',
+            clientKey : 'Mid-client-G7pClpk5aTmeFySZ'
+        });
+
+        let grossAmount = req.body?.gross_amount || 1515000;
+
+        let parameter = {
+            "transaction_details": {
+                "order_id": "PHW-" + Date.now(),
+                "gross_amount": Number(grossAmount)
+            }
         };
 
-        const response = await fetch('https://app.sandbox.midtrans.com/snap/v1/transactions', {
-            method: 'POST',
-            headers: { 
-              'Accept': 'application/json', 
-              'Content-Type': 'application/json', 
-              'Authorization': 'Basic ' + authString 
-            },
-            body: JSON.stringify(payload)
-        });
+        const transaction = await snap.createTransaction(parameter);
         
-        const data = await response.json();
-        
-        console.log("Status Midtrans:", response.status); 
-        console.log("Balasan Midtrans:", data);
+        console.log("Token berhasil didapat:", transaction.token);
+        res.status(200).json({ token: transaction.token });
 
-        if (response.ok && data.token) {
-          res.status(200).json({ token: data.token });
-        } else {
-          res.status(400).json({ error: "Ditolak", details: data });
-        }
     } catch (error) {
-        console.error("Error Server:", error.message);
+        console.error("Error Midtrans:", error.message);
         res.status(500).json({ error: error.message });
     }
 });
