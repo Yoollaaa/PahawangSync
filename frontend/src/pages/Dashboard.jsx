@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios'; 
 import ProductCard from '../components/ProductCard';
-import { QRCodeSVG } from 'qrcode.react'; // Tambahkan ini untuk menampilkan QR Code
+import { QRCodeSVG } from 'qrcode.react';
 
 const IconCart = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>;
 const IconTicket = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 12h20"/><path d="M6 9h.01"/><path d="M6 15h.01"/><path d="M18 9h.01"/><path d="M18 15h.01"/></svg>;
@@ -16,10 +16,10 @@ export default function Dashboard() {
   const [selectedProduct, setSelectedProduct] = useState(null); 
   const [isCartOpen, setIsCartOpen] = useState(false);
   
-  // State untuk fitur Tiket Digital
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
   const [userTickets, setUserTickets] = useState([]);
   const [selectedTicket, setSelectedTicket] = useState(null);
+  const [activeTicketTab, setActiveTicketTab] = useState('Aktif');
 
   const navigate = useNavigate();
 
@@ -56,22 +56,20 @@ export default function Dashboard() {
       if (!user) return;
       
       const response = await axios.get('http://localhost:5000/api/reservations');
-      console.log("1. Data mentah dari Backend:", response.data);
-
       const allTickets = Array.isArray(response.data) ? response.data : (response.data.data || []);
-      console.log("2. Daftar semua tiket di database:", allTickets);
-
-      const myTickets = allTickets.filter(ticket => 
-        ticket.customer_name?.toLowerCase() === user.name?.toLowerCase()
-      );
       
-      console.log("3. Tiket yang berhasil disaring untuk", user.name, ":", myTickets);
+      const myTickets = allTickets.filter(ticket => {
+        const namaDiDatabase = ticket.customer_name ? ticket.customer_name.toLowerCase().trim() : '';
+        const namaLogin = user.name ? user.name.toLowerCase().trim() : '';
+        return namaDiDatabase === namaLogin;
+      });
+      
       setUserTickets(myTickets);
-      
     } catch (error) {
       console.error("Gagal mengambil data tiket dari server:", error);
     }
   };
+
   const handleOpenTicketModal = () => {
     setIsTicketModalOpen(true);
     fetchMyTickets();
@@ -136,10 +134,17 @@ export default function Dashboard() {
 
   if (!user) return null;
 
+  const displayedTickets = userTickets.filter(ticket => {
+    if (activeTicketTab === 'Aktif') {
+      return ticket.status !== 'Completed';
+    } else {
+      return ticket.status === 'Completed'; 
+    }
+  });
+
   return (
     <div className="min-h-screen bg-[#F4F8FB] text-[#0F172A] font-sans pb-24 selection:bg-[#0EA5E9] selection:text-white">
       
-      {/* NAVBAR */}
       <nav className="fixed top-0 w-full z-40 bg-[#F4F8FB]/80 backdrop-blur-xl border-b border-[#E2E8F0] shadow-sm">
         <div className="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
           <div className="flex items-center gap-3">
@@ -180,7 +185,6 @@ export default function Dashboard() {
           <p className="text-slate-500 font-medium">Temukan keindahan tersembunyi di Pulau Pahawang hari ini.</p>
         </header>
 
-        {/* BENTO GRID */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-16">
           <div onClick={() => setIsCartOpen(true)} className="md:col-span-2 group bg-[#0A2540] rounded-[24px] p-8 text-white relative overflow-hidden cursor-pointer hover:shadow-xl hover:shadow-[#0A2540]/20 hover:-translate-y-1 transition-all duration-300">
              <div className="absolute right-0 bottom-0 opacity-20 pointer-events-none group-hover:scale-110 transition-transform duration-700">
@@ -195,7 +199,6 @@ export default function Dashboard() {
             </div>
           </div>
           
-          {/* TOMBOL TIKET DIGITAL */}
           <div onClick={handleOpenTicketModal} className="group bg-white rounded-[24px] p-8 border border-slate-100 cursor-pointer hover:border-[#38BDF8] hover:shadow-lg hover:shadow-[#38BDF8]/10 hover:-translate-y-1 transition-all duration-300">
             <div className="flex flex-col h-full justify-between min-h-[160px]">
               <div className="w-12 h-12 bg-[#F0F9FF] text-[#0284C7] rounded-full flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#0284C7] group-hover:text-white transition-all duration-300"><IconTicket /></div>
@@ -253,27 +256,44 @@ export default function Dashboard() {
         </section>
       </main>
 
-      {/* POP-UP TIKET DIGITAL */}
       {isTicketModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A]/60 backdrop-blur-sm p-4">
           <div className="bg-white w-full max-w-4xl rounded-[32px] shadow-2xl flex flex-col md:flex-row overflow-hidden max-h-[90vh]">
             
-            {/* Bagian Kiri: Daftar Tiket */}
             <div className="w-full md:w-1/2 bg-slate-50 p-8 border-r border-slate-100 flex flex-col overflow-y-auto">
-              <div className="flex justify-between items-center mb-6">
+              <div className="flex justify-between items-center mb-4">
                 <h3 className="text-2xl font-black text-[#0F172A]">Riwayat Tiket</h3>
-                <button onClick={() => { setIsTicketModalOpen(false); setSelectedTicket(null); }} className="md:hidden w-8 h-8 flex items-center justify-center bg-slate-200 rounded-full font-bold text-slate-500">✕</button>
+                <button onClick={() => { setIsTicketModalOpen(false); setSelectedTicket(null); setActiveTicketTab('Aktif'); }} className="md:hidden w-8 h-8 flex items-center justify-center bg-slate-200 rounded-full font-bold text-slate-500">✕</button>
+              </div>
+
+              <div className="flex bg-slate-200/60 p-1.5 rounded-xl mb-6">
+                <button 
+                  onClick={() => { setActiveTicketTab('Aktif'); setSelectedTicket(null); }}
+                  className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTicketTab === 'Aktif' ? 'bg-white text-[#0284C7] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Belum Digunakan
+                </button>
+                <button 
+                  onClick={() => { setActiveTicketTab('Selesai'); setSelectedTicket(null); }}
+                  className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTicketTab === 'Selesai' ? 'bg-white text-[#0284C7] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Selesai
+                </button>
               </div>
               
-              {userTickets.length === 0 ? (
+              {displayedTickets.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-center opacity-50 py-10">
-                  <span className="text-5xl mb-3">🎫</span>
-                  <p className="font-bold">Belum ada tiket</p>
-                  <p className="text-sm">Kamu belum melakukan pemesanan.</p>
+                  <span className="text-5xl mb-3">{activeTicketTab === 'Aktif' ? '🎟️' : '✅'}</span>
+                  <p className="font-bold">Tidak ada tiket</p>
+                  <p className="text-sm">
+                    {activeTicketTab === 'Aktif' 
+                      ? 'Kamu belum memiliki pesanan aktif.' 
+                      : 'Belum ada tiket yang selesai digunakan.'}
+                  </p>
                 </div>
               ) : (
                 <div className="flex flex-col gap-3">
-                  {userTickets.map((ticket, index) => (
+                  {displayedTickets.map((ticket, index) => (
                     <div 
                       key={ticket.id || index} 
                       onClick={() => setSelectedTicket(ticket)}
@@ -297,14 +317,23 @@ export default function Dashboard() {
 
             {/* Bagian Kanan: Detail & QR Code */}
             <div className="w-full md:w-1/2 p-8 flex flex-col items-center justify-center relative bg-white">
-              <button onClick={() => { setIsTicketModalOpen(false); setSelectedTicket(null); }} className="hidden md:flex absolute top-6 right-6 w-10 h-10 items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-full font-bold transition-colors">✕</button>
+              <button onClick={() => { setIsTicketModalOpen(false); setSelectedTicket(null); setActiveTicketTab('Aktif'); }} className="hidden md:flex absolute top-6 right-6 w-10 h-10 items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-full font-bold transition-colors">✕</button>
               
               {selectedTicket ? (
                 <div className="w-full max-w-sm text-center">
                   <h4 className="text-lg font-black text-[#0F172A] mb-2">{selectedTicket.asset_name || 'Tiket Wisata Pahawang'}</h4>
-                  <p className="text-sm text-slate-500 font-medium mb-8">Scan QR Code ini pada petugas kami di lokasi keberangkatan.</p>
+                  <p className="text-sm text-slate-500 font-medium mb-8">
+                    {selectedTicket.status === 'Completed' 
+                      ? 'Tiket ini sudah di-scan dan berhasil digunakan.' 
+                      : 'Scan QR Code ini pada petugas kami di lokasi keberangkatan.'}
+                  </p>
                   
-                  <div className="inline-block p-6 bg-white border-2 border-dashed border-slate-200 rounded-3xl mb-6">
+                  <div className={`inline-block p-6 bg-white border-2 border-dashed rounded-3xl mb-6 relative ${selectedTicket.status === 'Completed' ? 'border-green-200 opacity-60' : 'border-slate-200'}`}>
+                    {selectedTicket.status === 'Completed' && (
+                       <div className="absolute inset-0 flex items-center justify-center z-10 bg-white/50 rounded-3xl backdrop-blur-[1px]">
+                          <div className="bg-green-500 text-white text-sm font-black px-4 py-2 rounded-full rotate-[-15deg] shadow-lg border-2 border-white">TERPAKAI</div>
+                       </div>
+                    )}
                     <QRCodeSVG 
                       value={`PHW-TICKET-${selectedTicket.id}-${selectedTicket.customer_name}`} 
                       size={200} 
@@ -346,7 +375,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* POP-UP DETAIL PRODUK (CART) */}
       {selectedProduct && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 bg-[#0F172A]/40 backdrop-blur-sm transition-all">
           <div className="bg-white rounded-[32px] w-full max-w-md p-6 shadow-2xl relative animate-[bounce_0.3s_ease-out]">
@@ -369,7 +397,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* SIDEBAR KERANJANG */}
       {isCartOpen && (
         <div className="fixed inset-0 bg-[#0F172A]/30 backdrop-blur-sm z-[70] transition-opacity" onClick={() => setIsCartOpen(false)}></div>
       )}

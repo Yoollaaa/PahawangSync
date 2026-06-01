@@ -63,16 +63,16 @@ export default function CheckoutPage() {
     }
   }, [navigate, cart.length, isSuccess]);
 
-  // 3. AUTO-SAVE KE DATABASE: Pengaman berlapis jika ter-refresh
   useEffect(() => {
     const saveOrderToDatabase = async () => {
       if (isPaymentSuccess && user && cart.length > 0) {
         const currentOrderId = orderIdMidtrans || ticketId || fallbackId;
         const hasSaved = localStorage.getItem(`saved_db_${currentOrderId}`);
 
-        // Jika belum disave untuk ID pesanan ini, maka masukkan ke database
         if (!hasSaved) {
+          localStorage.setItem(`saved_db_${currentOrderId}`, 'true'); 
           console.log("Menyelamatkan tiket ke database...");
+          
           try {
             for (const item of cart) {
               const payload = {
@@ -88,11 +88,10 @@ export default function CheckoutPage() {
                 body: JSON.stringify(payload)
               });
             }
-            // Gembok agar tidak tersimpan dobel
-            localStorage.setItem(`saved_db_${currentOrderId}`, 'true');
             console.log("Tiket berhasil diamankan ke database!");
           } catch (error) {
             console.error("Gagal simpan ke database:", error);
+            localStorage.removeItem(`saved_db_${currentOrderId}`); 
           }
         }
       }
@@ -112,7 +111,6 @@ export default function CheckoutPage() {
       const currentOrderId = "PHW-" + Date.now();
       setTicketId(currentOrderId);
 
-      // Menggunakan harga asli tanpa embel-embel biaya admin
       const response = await axios.post('http://localhost:5000/api/tokenize', {
         gross_amount: totalPrice, 
         order_id: currentOrderId
@@ -143,7 +141,6 @@ export default function CheckoutPage() {
 
   const formatRupiah = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
 
-  // Fungsi khusus untuk menghapus brankas memori setelah kembali ke beranda
   const handleGoHome = () => {
     localStorage.removeItem('phw_cart');
     localStorage.removeItem('phw_total');

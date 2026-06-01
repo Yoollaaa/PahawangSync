@@ -23,7 +23,6 @@ pool.connect()
   .then(() => console.log('Database PostgreSQL sukses terhubung!'))
   .catch((err) => console.error('Gagal koneksi ke database:', err.stack));
 
-
 app.post('/api/tokenize', async (req, res) => {
     try {
         let snap = new midtransClient.Snap({
@@ -51,6 +50,7 @@ app.post('/api/tokenize', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
 
 app.get('/api/assets', async (req, res) => {
   try {
@@ -99,14 +99,24 @@ app.delete('/api/assets/:id', async (req, res) => {
   }
 });
 
+app.get('/api/reservations', async (req, res) => {
+  try {
+    const queryText = `SELECT r.*, a.name as asset_name, a.category as asset_category FROM reservations r JOIN assets a ON r.asset_id = a.id ORDER BY r.booking_date ASC`;
+    const result = await pool.query(queryText);
+    res.status(200).json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: "Terjadi kesalahan saat mengambil tiket" });
+  }
+});
+
 app.post('/api/reservations', async (req, res) => {
     const { asset_id, customer_name, booking_date, quantity, total_price } = req.body;
     
     try {
-        const queryText = `INSERT INTO reservations (asset_id, customer_name, booking_date, quantity, total_price, status) 
-                           VALUES ($1, $2, $3, $4, $5, 'Pending') RETURNING *`;
+        const queryText = `INSERT INTO reservations (asset_id, customer_name, booking_date, quantity, total_price, status) VALUES ($1, $2, $3, $4, $5, 'Pending') RETURNING *`;
         const result = await pool.query(queryText, [asset_id, customer_name, booking_date, quantity, total_price]);
         
+        console.log(`Tiket berhasil disimpan untuk: ${customer_name}`);
         res.status(201).json({ message: "Tiket berhasil diamankan!", data: result.rows[0] });
     } catch (error) {
         console.error("Gagal menyimpan ke database:", error);
@@ -132,6 +142,7 @@ app.put('/api/reservations/:id/complete', async (req, res) => {
     res.status(500).json({ error: "Gagal" });
   }
 });
+
 
 app.get('/api/finance', async (req, res) => {
   try {
