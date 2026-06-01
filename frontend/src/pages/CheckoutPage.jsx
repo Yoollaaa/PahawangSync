@@ -28,7 +28,6 @@ export default function CheckoutPage() {
 
     const snapScript = "https://app.sandbox.midtrans.com/snap/snap.js"; 
     const clientKey = "Mid-client-G7pClpk5aTmeFySZ"; 
-
     const script = document.createElement('script');
     script.src = snapScript;
     script.setAttribute('data-client-key', clientKey);
@@ -65,9 +64,30 @@ export default function CheckoutPage() {
       }
 
       window.snap.pay(response.data.token, {
-        onSuccess: function(result) {
+        onSuccess: async function(result) {
           console.log('success', result);
-          alert("Pembayaran Berhasil!");
+          
+          try {
+            for (const item of cart) {
+              const payload = {
+                asset_id: item.id, 
+                customer_name: user.name, 
+                booking_date: date,      
+                quantity: item.quantity,
+                total_price: item.price * item.quantity 
+              };
+
+              await fetch('http://localhost:5000/api/reservations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+            }
+            console.log("Data pesanan berhasil dikirim ke database admin!");
+          } catch (error) {
+            console.error("Gagal mengirim data pesanan ke database:", error);
+          }
+
           setIsSuccess(true);
         },
         onPending: function(result) {
@@ -83,10 +103,14 @@ export default function CheckoutPage() {
         }
       });
 
-    } catch (error) {
+} catch (error) {
       setIsLoading(false);
-      console.error("Error fetching token:", error);
-      alert("Sistem sedang sibuk, gagal tersambung ke backend.");
+      
+      const detailError = error.response?.data?.details;
+      const pesanError = detailError?.error_messages?.[0] || error.response?.data?.error || error.message;
+      
+      console.error("Error lengkap:", error.response?.data || error);
+      alert("Gagal tersambung! Alasan dari server: " + pesanError);
     }
   };
 

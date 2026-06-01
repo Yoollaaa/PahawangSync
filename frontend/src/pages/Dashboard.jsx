@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-// import axios from 'axios'; // Dimatikan sementara
+import axios from 'axios'; 
 import ProductCard from '../components/ProductCard';
 
 const IconCart = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>;
@@ -25,46 +25,23 @@ export default function Dashboard() {
       setUser(JSON.parse(userData));
     }
 
-    // --- SUNTIKAN DATA DUMMY SEMENTARA ---
-    const dummyData = [
-      {
-        id: 1,
-        name: "Villa Air Andreas Luxury",
-        category: "Penginapan",
-        price: 1250000,
-        image: "https://images.unsplash.com/photo-1590523277543-a94d2e4eb00b?q=80&w=800",
-        description: "Villa mengapung eksklusif dengan fasilitas lengkap dan pemandangan langsung ke laut lepas."
-      },
-      {
-        id: 2,
-        name: "Sewa Perahu Jukung",
-        category: "Transportasi",
-        price: 350000,
-        image: "https://images.unsplash.com/photo-1506929562872-bb421503ef21?q=80&w=800",
-        description: "Perahu tradisional untuk keliling pulau Pahawang. Kapasitas maksimal 10 orang."
-      },
-      {
-        id: 3,
-        name: "Paket Snorkeling Nemo",
-        category: "Wahana",
-        price: 150000,
-        image: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?q=80&w=800",
-        description: "Berenang bersama ikan badut dengan peralatan snorkeling lengkap plus pemandu."
-      },
-      {
-        id: 4,
-        name: "Paket Makan Seafood Bakar",
-        category: "Kuliner",
-        price: 85000,
-        image: "https://images.unsplash.com/photo-1559742811-822873691df8?q=80&w=800",
-        description: "Nikmati sajian ikan bakar segar hasil tangkapan nelayan lokal lengkap dengan sambal khas."
-      }
-    ];
-    
-    // Setel data dummy ke dalam state products
-    setProducts(dummyData);
-    // -------------------------------------
+    const fetchProducts = async () => {
+      try {
+        const response = await axios.get('http://localhost:5000/api/assets');
+        
+        const formattedData = response.data.map(item => ({
+          ...item,
+          image: "https://images.unsplash.com/photo-1590523277543-a94d2e4eb00b?q=80&w=800", 
+          description: "Fasilitas berkualitas dan pelayanan terbaik di Pulau Pahawang."
+        }));
 
+        setProducts(formattedData);
+      } catch (error) {
+        console.error("Gagal mengambil data produk dari server:", error);
+      }
+    };
+    
+    fetchProducts();
   }, [navigate]);
 
   const handleLogout = () => {
@@ -80,7 +57,7 @@ export default function Dashboard() {
     : products.filter(p => p.category === activeCategory);
 
   const categories = [
-    'Semua', 'Penginapan', 'Transportasi', 'Wahana', 'Kuliner', 'Jasa Dokumentasi', 'Oleh-oleh', 'Paket Tour'
+    'Semua', 'Villa', 'Perahu', 'Alat', 'Kuliner', 'Oleh-oleh'
   ];
 
   const confirmAddToCart = () => {

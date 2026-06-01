@@ -13,7 +13,7 @@ const pool = new Pool({
   user: 'postgres',
   host: 'localhost',
   database: 'pahawang_sync',
-  password: '2270', 
+  password: 'Febby123', 
   port: 5432,
 });
 
@@ -22,23 +22,45 @@ pool.connect()
   .then(() => console.log('Database PostgreSQL sukses terhubung!'))
   .catch((err) => console.error('Gagal koneksi ke database:', err.stack));
 
-app.post('/api/tokenize', async (req, res) => {
-    let grossAmount = req.body?.gross_amount || 1265000;
-    const serverKey = "RAHASIA_NEGARA";    
-    const authString = Buffer.from(serverKey + ':').toString('base64');
-    const randomOrderId = "PHW-" + Math.floor(Math.random() * 1000000);
-    const payload = { transaction_details: { order_id: randomOrderId, gross_amount: Number(grossAmount) } };
 
+app.post('/api/tokenize', async (req, res) => {
     try {
+        console.log("Menerima request checkout...");
+        let grossAmount = req.body?.gross_amount || 1265000;
+        
+        const serverKey = "Mid-server-QWKNb8k3lHs7d2hYn8dUOM3j".trim();    
+        const authString = Buffer.from(serverKey + ':').toString('base64');
+        const randomOrderId = "PHW-" + Math.floor(Math.random() * 1000000);
+        
+        const payload = { 
+          transaction_details: { 
+            order_id: randomOrderId, 
+            gross_amount: Number(grossAmount) 
+          } 
+        };
+
         const response = await fetch('https://app.sandbox.midtrans.com/snap/v1/transactions', {
             method: 'POST',
-            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'Authorization': 'Basic ' + authString },
+            headers: { 
+              'Accept': 'application/json', 
+              'Content-Type': 'application/json', 
+              'Authorization': 'Basic ' + authString 
+            },
             body: JSON.stringify(payload)
         });
+        
         const data = await response.json();
-        if (data.token) res.json({ token: data.token });
-        else res.status(400).json({ error: "Ditolak", details: data });
+        
+        console.log("Status Midtrans:", response.status); 
+        console.log("Balasan Midtrans:", data);
+
+        if (response.ok && data.token) {
+          res.status(200).json({ token: data.token });
+        } else {
+          res.status(400).json({ error: "Ditolak", details: data });
+        }
     } catch (error) {
+        console.error("Error Server:", error.message);
         res.status(500).json({ error: error.message });
     }
 });
@@ -90,6 +112,31 @@ app.delete('/api/assets/:id', async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
+=======
+
+app.post('/api/reservations', async (req, res) => {
+  const { asset_id, customer_name, booking_date, quantity, total_price } = req.body;
+  
+  try {
+    const result = await pool.query(
+      "INSERT INTO reservations (asset_id, customer_name, booking_date, quantity, status) VALUES ($1, $2, $3, $4, 'Pending') RETURNING *",
+      [asset_id, customer_name, booking_date, quantity]
+    );
+
+    await pool.query(
+      "INSERT INTO transactions (type, amount, description) VALUES ('Pemasukan', $1, $2)",
+      [total_price, `Pembayaran tiket dari ${customer_name}`]
+    );
+
+    res.status(201).json({ message: "Reservasi berhasil dicatat!", data: result.rows[0] });
+  } catch (error) {
+    console.error("Gagal mencatat reservasi:", error);
+    res.status(500).json({ error: "Terjadi kesalahan saat menyimpan pesanan" });
+  }
+});
+
+>>>>>>> 6a3a09d (redesign landing page)
 app.get('/api/reservations', async (req, res) => {
   try {
     const queryText = `SELECT r.*, a.name as asset_name, a.category as asset_category FROM reservations r JOIN assets a ON r.asset_id = a.id ORDER BY r.booking_date ASC`;
