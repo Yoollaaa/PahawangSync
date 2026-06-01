@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios'; 
 import ProductCard from '../components/ProductCard';
+import { QRCodeSVG } from 'qrcode.react'; // Tambahkan ini untuk menampilkan QR Code
 
 const IconCart = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>;
 const IconTicket = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 12h20"/><path d="M6 9h.01"/><path d="M6 15h.01"/><path d="M18 9h.01"/><path d="M18 15h.01"/></svg>;
@@ -14,27 +15,33 @@ export default function Dashboard() {
   const [cart, setCart] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null); 
   const [isCartOpen, setIsCartOpen] = useState(false);
+  
+  // State untuk fitur Tiket Digital
+  const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
+  const [userTickets, setUserTickets] = useState([]);
+  const [selectedTicket, setSelectedTicket] = useState(null);
 
   const navigate = useNavigate();
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
+    let currentUser = null;
+    
     if (!userData) {
       navigate('/login');
     } else {
-      setUser(JSON.parse(userData));
+      currentUser = JSON.parse(userData);
+      setUser(currentUser);
     }
 
     const fetchProducts = async () => {
       try {
         const response = await axios.get('http://localhost:5000/api/assets');
-        
         const formattedData = response.data.map(item => ({
           ...item,
           image: "https://images.unsplash.com/photo-1590523277543-a94d2e4eb00b?q=80&w=800", 
           description: "Fasilitas berkualitas dan pelayanan terbaik di Pulau Pahawang."
         }));
-
         setProducts(formattedData);
       } catch (error) {
         console.error("Gagal mengambil data produk dari server:", error);
@@ -43,6 +50,32 @@ export default function Dashboard() {
     
     fetchProducts();
   }, [navigate]);
+
+  const fetchMyTickets = async () => {
+    try {
+      if (!user) return;
+      
+      const response = await axios.get('http://localhost:5000/api/reservations');
+      console.log("1. Data mentah dari Backend:", response.data);
+
+      const allTickets = Array.isArray(response.data) ? response.data : (response.data.data || []);
+      console.log("2. Daftar semua tiket di database:", allTickets);
+
+      const myTickets = allTickets.filter(ticket => 
+        ticket.customer_name?.toLowerCase() === user.name?.toLowerCase()
+      );
+      
+      console.log("3. Tiket yang berhasil disaring untuk", user.name, ":", myTickets);
+      setUserTickets(myTickets);
+      
+    } catch (error) {
+      console.error("Gagal mengambil data tiket dari server:", error);
+    }
+  };
+  const handleOpenTicketModal = () => {
+    setIsTicketModalOpen(true);
+    fetchMyTickets();
+  };
 
   const handleLogout = () => {
     const isConfirm = window.confirm("Apakah kamu yakin ingin keluar?");
@@ -161,15 +194,18 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-          <div className="group bg-white rounded-[24px] p-8 border border-slate-100 cursor-pointer hover:border-[#38BDF8] hover:shadow-lg hover:shadow-[#38BDF8]/10 hover:-translate-y-1 transition-all duration-300">
+          
+          {/* TOMBOL TIKET DIGITAL */}
+          <div onClick={handleOpenTicketModal} className="group bg-white rounded-[24px] p-8 border border-slate-100 cursor-pointer hover:border-[#38BDF8] hover:shadow-lg hover:shadow-[#38BDF8]/10 hover:-translate-y-1 transition-all duration-300">
             <div className="flex flex-col h-full justify-between min-h-[160px]">
               <div className="w-12 h-12 bg-[#F0F9FF] text-[#0284C7] rounded-full flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#0284C7] group-hover:text-white transition-all duration-300"><IconTicket /></div>
               <div>
                 <h3 className="text-xl font-bold text-[#0F172A] mb-1">Tiket Digital</h3>
-                <p className="text-slate-500 text-sm font-medium">Akses QR Code.</p>
+                <p className="text-slate-500 text-sm font-medium">Akses QR Code pesanan.</p>
               </div>
             </div>
           </div>
+
           <div className="group bg-white rounded-[24px] p-8 border border-slate-100 cursor-pointer hover:border-[#38BDF8] hover:shadow-lg hover:shadow-[#38BDF8]/10 hover:-translate-y-1 transition-all duration-300">
              <div className="flex flex-col h-full justify-between min-h-[160px]">
               <div className="w-12 h-12 bg-[#F0F9FF] text-[#0284C7] rounded-full flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#0284C7] group-hover:text-white transition-all duration-300"><IconUser /></div>
@@ -217,6 +253,100 @@ export default function Dashboard() {
         </section>
       </main>
 
+      {/* POP-UP TIKET DIGITAL */}
+      {isTicketModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A]/60 backdrop-blur-sm p-4">
+          <div className="bg-white w-full max-w-4xl rounded-[32px] shadow-2xl flex flex-col md:flex-row overflow-hidden max-h-[90vh]">
+            
+            {/* Bagian Kiri: Daftar Tiket */}
+            <div className="w-full md:w-1/2 bg-slate-50 p-8 border-r border-slate-100 flex flex-col overflow-y-auto">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-black text-[#0F172A]">Riwayat Tiket</h3>
+                <button onClick={() => { setIsTicketModalOpen(false); setSelectedTicket(null); }} className="md:hidden w-8 h-8 flex items-center justify-center bg-slate-200 rounded-full font-bold text-slate-500">✕</button>
+              </div>
+              
+              {userTickets.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-center opacity-50 py-10">
+                  <span className="text-5xl mb-3">🎫</span>
+                  <p className="font-bold">Belum ada tiket</p>
+                  <p className="text-sm">Kamu belum melakukan pemesanan.</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {userTickets.map((ticket, index) => (
+                    <div 
+                      key={ticket.id || index} 
+                      onClick={() => setSelectedTicket(ticket)}
+                      className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${selectedTicket?.id === ticket.id ? 'border-[#0284C7] bg-white shadow-md' : 'border-transparent bg-white hover:border-slate-200'}`}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-[10px] font-bold bg-[#E0F2FE] text-[#0284C7] px-2 py-1 rounded-md uppercase tracking-wider">
+                          {ticket.asset_category || 'Wisata'}
+                        </span>
+                        <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase ${ticket.status === 'Completed' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
+                          {ticket.status || 'Pending'}
+                        </span>
+                      </div>
+                      <h4 className="font-bold text-[#0F172A] leading-tight mb-1">{ticket.asset_name || `Pesanan #${ticket.id}`}</h4>
+                      <p className="text-xs text-slate-500 font-medium">Berangkat: {new Date(ticket.booking_date).toLocaleDateString('id-ID')}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Bagian Kanan: Detail & QR Code */}
+            <div className="w-full md:w-1/2 p-8 flex flex-col items-center justify-center relative bg-white">
+              <button onClick={() => { setIsTicketModalOpen(false); setSelectedTicket(null); }} className="hidden md:flex absolute top-6 right-6 w-10 h-10 items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-full font-bold transition-colors">✕</button>
+              
+              {selectedTicket ? (
+                <div className="w-full max-w-sm text-center">
+                  <h4 className="text-lg font-black text-[#0F172A] mb-2">{selectedTicket.asset_name || 'Tiket Wisata Pahawang'}</h4>
+                  <p className="text-sm text-slate-500 font-medium mb-8">Scan QR Code ini pada petugas kami di lokasi keberangkatan.</p>
+                  
+                  <div className="inline-block p-6 bg-white border-2 border-dashed border-slate-200 rounded-3xl mb-6">
+                    <QRCodeSVG 
+                      value={`PHW-TICKET-${selectedTicket.id}-${selectedTicket.customer_name}`} 
+                      size={200} 
+                      bgColor={"#ffffff"}
+                      fgColor={"#0F172A"}
+                      level={"H"}
+                    />
+                  </div>
+                  
+                  <div className="bg-slate-50 p-4 rounded-2xl text-left border border-slate-100 w-full mb-6">
+                    <div className="flex justify-between text-xs font-bold text-slate-400 mb-2">
+                      <span>NAMA PEMESAN</span>
+                      <span className="text-[#0F172A]">{selectedTicket.customer_name}</span>
+                    </div>
+                    <div className="flex justify-between text-xs font-bold text-slate-400 mb-2">
+                      <span>TANGGAL</span>
+                      <span className="text-[#0F172A]">{new Date(selectedTicket.booking_date).toLocaleDateString('id-ID')}</span>
+                    </div>
+                    <div className="flex justify-between text-xs font-bold text-slate-400 mb-2">
+                      <span>JUMLAH PAX</span>
+                      <span className="text-[#0F172A]">{selectedTicket.quantity || 1}x</span>
+                    </div>
+                    <div className="flex justify-between text-xs font-bold text-slate-400 border-t border-slate-200 pt-2 mt-2">
+                      <span>TOTAL BAYAR</span>
+                      <span className="text-[#0284C7] font-black">{formatRupiah(selectedTicket.total_price)}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center opacity-40">
+                  <IconTicket />
+                  <p className="mt-4 font-bold text-lg text-[#0F172A]">Pilih tiket di samping</p>
+                  <p className="text-sm text-slate-500">Pilih salah satu tiket untuk melihat QR Code.</p>
+                </div>
+              )}
+            </div>
+            
+          </div>
+        </div>
+      )}
+
+      {/* POP-UP DETAIL PRODUK (CART) */}
       {selectedProduct && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 bg-[#0F172A]/40 backdrop-blur-sm transition-all">
           <div className="bg-white rounded-[32px] w-full max-w-md p-6 shadow-2xl relative animate-[bounce_0.3s_ease-out]">
@@ -239,6 +369,7 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* SIDEBAR KERANJANG */}
       {isCartOpen && (
         <div className="fixed inset-0 bg-[#0F172A]/30 backdrop-blur-sm z-[70] transition-opacity" onClick={() => setIsCartOpen(false)}></div>
       )}

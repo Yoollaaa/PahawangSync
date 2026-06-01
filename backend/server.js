@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import pkg from 'pg';
+import midtransClient from 'midtrans-client';
 
 const { Pool } = pkg;
 const app = express();
@@ -17,7 +18,7 @@ const pool = new Pool({
   port: 5432,
 });
 
-const serverKey = "RAHASIA_NEGARA";
+const serverKey = "Mid-server-QWKNb8k3lHs7d2hYn8dUOM3j";
 pool.connect()
   .then(() => console.log('Database PostgreSQL sukses terhubung!'))
   .catch((err) => console.error('Gagal koneksi ke database:', err.stack));
@@ -98,39 +99,19 @@ app.delete('/api/assets/:id', async (req, res) => {
   }
 });
 
-<<<<<<< HEAD
-=======
-
 app.post('/api/reservations', async (req, res) => {
-  const { asset_id, customer_name, booking_date, quantity, total_price } = req.body;
-  
-  try {
-    const result = await pool.query(
-      "INSERT INTO reservations (asset_id, customer_name, booking_date, quantity, status) VALUES ($1, $2, $3, $4, 'Pending') RETURNING *",
-      [asset_id, customer_name, booking_date, quantity]
-    );
-
-    await pool.query(
-      "INSERT INTO transactions (type, amount, description) VALUES ('Pemasukan', $1, $2)",
-      [total_price, `Pembayaran tiket dari ${customer_name}`]
-    );
-
-    res.status(201).json({ message: "Reservasi berhasil dicatat!", data: result.rows[0] });
-  } catch (error) {
-    console.error("Gagal mencatat reservasi:", error);
-    res.status(500).json({ error: "Terjadi kesalahan saat menyimpan pesanan" });
-  }
-});
-
->>>>>>> 6a3a09d (redesign landing page)
-app.get('/api/reservations', async (req, res) => {
-  try {
-    const queryText = `SELECT r.*, a.name as asset_name, a.category as asset_category FROM reservations r JOIN assets a ON r.asset_id = a.id ORDER BY r.booking_date ASC`;
-    const result = await pool.query(queryText);
-    res.status(200).json(result.rows);
-  } catch (error) {
-    res.status(500).json({ error: "Terjadi kesalahan" });
-  }
+    const { asset_id, customer_name, booking_date, quantity, total_price } = req.body;
+    
+    try {
+        const queryText = `INSERT INTO reservations (asset_id, customer_name, booking_date, quantity, total_price, status) 
+                           VALUES ($1, $2, $3, $4, $5, 'Pending') RETURNING *`;
+        const result = await pool.query(queryText, [asset_id, customer_name, booking_date, quantity, total_price]);
+        
+        res.status(201).json({ message: "Tiket berhasil diamankan!", data: result.rows[0] });
+    } catch (error) {
+        console.error("Gagal menyimpan ke database:", error);
+        res.status(500).json({ error: "Gagal menyimpan tiket ke database" });
+    }
 });
 
 app.put('/api/reservations/:id/confirm', async (req, res) => {

@@ -1,44 +1,105 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { QRCodeSVG } from 'qrcode.react';
 
 export default function CheckoutPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  
-  const { cart, totalPrice } = location.state || { cart: [], totalPrice: 0 };
+
+  // 1. AMANKAN DATA KE LOCALSTORAGE AGAR KEBAL DARI REFRESH MIDTRANS
+  const [cart, setCart] = useState(() => {
+    if (location.state?.cart) return location.state.cart;
+    const savedCart = localStorage.getItem('phw_cart');
+    return savedCart ? JSON.parse(savedCart) : [];
+  });
+
+  const [totalPrice, setTotalPrice] = useState(() => {
+    if (location.state?.totalPrice) return location.state.totalPrice;
+    const savedPrice = localStorage.getItem('phw_total');
+    return savedPrice ? Number(savedPrice) : 0;
+  });
+
+  const [date, setDate] = useState(() => localStorage.getItem('phw_date') || '');
   const [user, setUser] = useState(null);
 
-  const [date, setDate] = useState('');
-  const [pax, setPax] = useState(1);
-  const [isSuccess, setIsSuccess] = useState(false);
+  // Pantau perubahan dan selalu simpan ke brankas memori browser
+  useEffect(() => {
+    if (cart.length > 0) {
+      localStorage.setItem('phw_cart', JSON.stringify(cart));
+      localStorage.setItem('phw_total', totalPrice);
+    }
+    if (date) localStorage.setItem('phw_date', date);
+  }, [cart, totalPrice, date]);
+
+  // 2. SIASAT MEMBACA URL MIDTRANS
+  const urlParams = new URLSearchParams(window.location.search);
+  const paramStatus = urlParams.get('status');
+  const paramMidtrans = urlParams.get('transaction_status');
+  const orderIdMidtrans = urlParams.get('order_id');
+  const isPaymentSuccess = paramStatus === 'success' || paramMidtrans === 'settlement' || paramMidtrans === 'capture';
+
+  const [isSuccess, setIsSuccess] = useState(isPaymentSuccess);
   const [isLoading, setIsLoading] = useState(false);
+  const [ticketId, setTicketId] = useState('');
+  const [fallbackId] = useState("PHW-" + Date.now());
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
-    if (!userData) {
-      navigate('/login');
-    } else {
-      setUser(JSON.parse(userData));
-    }
+    if (!userData) navigate('/login');
+    else setUser(JSON.parse(userData));
 
-    if (cart.length === 0 && !isSuccess) {
-      navigate('/dashboard');
-    }
+    if (cart.length === 0 && !isSuccess) navigate('/dashboard');
 
-    const snapScript = "https://app.sandbox.midtrans.com/snap/snap.js"; 
+    const snapScript = "https://app.sandbox.midtrans.com/snap/snap.js";
     const clientKey = "Mid-client-G7pClpk5aTmeFySZ"; 
-    const script = document.createElement('script');
-    script.src = snapScript;
-    script.setAttribute('data-client-key', clientKey);
-    script.async = true;
+    let script = document.querySelector(`script[src="${snapScript}"]`);
+    if (!script) {
+      script = document.createElement('script');
+      script.src = snapScript;
+      script.setAttribute('data-client-key', clientKey);
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, [navigate, cart.length, isSuccess]);
 
-    document.body.appendChild(script);
+  // 3. AUTO-SAVE KE DATABASE: Pengaman berlapis jika ter-refresh
+  useEffect(() => {
+    const saveOrderToDatabase = async () => {
+      if (isPaymentSuccess && user && cart.length > 0) {
+        const currentOrderId = orderIdMidtrans || ticketId || fallbackId;
+        const hasSaved = localStorage.getItem(`saved_db_${currentOrderId}`);
 
-    return () => {
-      document.body.removeChild(script);
+        // Jika belum disave untuk ID pesanan ini, maka masukkan ke database
+        if (!hasSaved) {
+          console.log("Menyelamatkan tiket ke database...");
+          try {
+            for (const item of cart) {
+              const payload = {
+                asset_id: item.id,
+                customer_name: user.name,
+                booking_date: date,
+                quantity: item.quantity,
+                total_price: item.price * item.quantity
+              };
+              await fetch('http://localhost:5000/api/reservations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+            }
+            // Gembok agar tidak tersimpan dobel
+            localStorage.setItem(`saved_db_${currentOrderId}`, 'true');
+            console.log("Tiket berhasil diamankan ke database!");
+          } catch (error) {
+            console.error("Gagal simpan ke database:", error);
+          }
+        }
+      }
     };
-  }, [navigate, cart, isSuccess]);
+    
+    saveOrderToDatabase();
+  }, [isPaymentSuccess, user, cart, date, orderIdMidtrans, ticketId, fallbackId]);
 
   const handlePayment = async () => {
     if (!date) {
@@ -48,14 +109,15 @@ export default function CheckoutPage() {
 
     try {
       setIsLoading(true);
-      console.log("Meminta token ke server via Axios...");
-      
-      const finalPrice = totalPrice + 15000;
+      const currentOrderId = "PHW-" + Date.now();
+      setTicketId(currentOrderId);
 
+      // Menggunakan harga asli tanpa embel-embel biaya admin
       const response = await axios.post('http://localhost:5000/api/tokenize', {
-        gross_amount: finalPrice
+        gross_amount: totalPrice, 
+        order_id: currentOrderId
       });
-      
+
       setIsLoading(false);
 
       if (!response.data || !response.data.token) {
@@ -64,87 +126,77 @@ export default function CheckoutPage() {
       }
 
       window.snap.pay(response.data.token, {
-        onSuccess: async function(result) {
-          console.log('success', result);
-          
-          try {
-            for (const item of cart) {
-              const payload = {
-                asset_id: item.id, 
-                customer_name: user.name, 
-                booking_date: date,      
-                quantity: item.quantity,
-                total_price: item.price * item.quantity 
-              };
-
-              await fetch('http://localhost:5000/api/reservations', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-              });
-            }
-            console.log("Data pesanan berhasil dikirim ke database admin!");
-          } catch (error) {
-            console.error("Gagal mengirim data pesanan ke database:", error);
-          }
-
+        onSuccess: function() {
           setIsSuccess(true);
+          window.history.replaceState(null, '', `?status=success&ticket=${currentOrderId}`);
         },
-        onPending: function(result) {
-          console.log('pending', result);
-          alert("Menunggu pembayaran...");
-        },
-        onError: function(result) {
-          console.log('error', result);
-          alert("Pembayaran gagal!");
-        },
-        onClose: function() {
-          alert('Kamu menutup pop-up sebelum menyelesaikan pembayaran.');
-        }
+        onPending: function() { alert("Menunggu pembayaran..."); },
+        onError: function() { alert("Pembayaran gagal diproses!"); },
+        onClose: function() { alert("Pop-up ditutup sebelum selesai."); }
       });
 
-} catch (error) {
+    } catch (error) {
       setIsLoading(false);
-      
-      const detailError = error.response?.data?.details;
-      const pesanError = detailError?.error_messages?.[0] || error.response?.data?.error || error.message;
-      
-      console.error("Error lengkap:", error.response?.data || error);
-      alert("Gagal tersambung! Alasan dari server: " + pesanError);
+      alert("Gagal tersambung ke server pembayaran!");
     }
   };
 
   const formatRupiah = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
 
+  // Fungsi khusus untuk menghapus brankas memori setelah kembali ke beranda
+  const handleGoHome = () => {
+    localStorage.removeItem('phw_cart');
+    localStorage.removeItem('phw_total');
+    localStorage.removeItem('phw_date');
+    navigate('/dashboard');
+  };
+
   if (!user) return null;
 
   if (isSuccess) {
+    const finalTicketId = ticketId || urlParams.get('ticket') || orderIdMidtrans || fallbackId;
+
     return (
       <div className="min-h-screen bg-[#F4F8FB] flex items-center justify-center p-6">
-        <div className="bg-white rounded-[40px] w-full max-w-md p-10 shadow-2xl text-center border border-slate-100">
-          <div className="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-6">
-            ✓
-          </div>
-          <h2 className="text-2xl font-black text-[#0F172A] mb-2">Pembayaran Berhasil!</h2>
-          <p className="text-slate-500 text-sm mb-8 font-medium">Tiket digital kamu sudah aktif dan siap digunakan.</p>
+        <div className="bg-white rounded-[32px] w-full max-w-md shadow-2xl text-center border border-slate-100 overflow-hidden">
           
-          <div className="bg-slate-50 rounded-2xl p-5 mb-8 text-left border border-slate-100">
-            <div className="flex justify-between text-xs font-bold text-slate-400 uppercase mb-2">
-              <span>Metode Bayar</span>
-              <span className="text-[#0F172A]">QRIS / E-Wallet</span>
-            </div>
-            <div className="flex justify-between text-xs font-bold text-slate-400 uppercase">
-              <span>Total Terbayar</span>
-              <span className="text-[#0284C7]">{formatRupiah(totalPrice + 15000)}</span>
-            </div>
+          <div className="bg-[#0A2540] p-8 text-white">
+            <div className="w-16 h-16 bg-green-400/20 text-green-400 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">✓</div>
+            <h2 className="text-2xl font-black mb-1">Pembayaran Sukses!</h2>
+            <p className="text-slate-300 text-sm font-medium">Ini adalah tiket digital kamu.</p>
           </div>
 
-          <button 
-            onClick={() => navigate('/dashboard')}
-            className="w-full py-4 rounded-full bg-[#0A2540] text-white font-bold hover:bg-[#1E293B] transition-all shadow-lg"
-          >
-            Kembali ke Beranda
-          </button>
+          <div className="p-8">
+            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 inline-block mb-6">
+              <QRCodeSVG value={finalTicketId} size={180} bgColor={"#ffffff"} fgColor={"#0F172A"} level={"H"} />
+            </div>
+            
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">ID Reservasi</p>
+            <p className="text-lg font-black text-[#0F172A] mb-8">{finalTicketId}</p>
+            
+            <div className="text-left bg-slate-50 rounded-2xl p-5 mb-8 border border-slate-100">
+              <div className="flex justify-between text-xs font-bold text-slate-400 uppercase mb-3">
+                <span>Nama</span>
+                <span className="text-[#0F172A] text-right font-bold">{user.name}</span>
+              </div>
+              <div className="flex justify-between text-xs font-bold text-slate-400 uppercase mb-3">
+                <span>Tanggal</span>
+                <span className="text-[#0F172A] text-right font-bold">{date || "-"}</span>
+              </div>
+              <div className="flex justify-between text-xs font-bold text-slate-400 uppercase border-t border-slate-200 pt-3 mt-1">
+                <span>Total</span>
+                <span className="text-[#0284C7] font-black">{formatRupiah(totalPrice)}</span>
+              </div>
+            </div>
+
+            <button onClick={handleGoHome} className="w-full py-4 rounded-full bg-[#0284C7] text-white font-bold hover:bg-[#0369A1] transition-all shadow-lg shadow-blue-500/30">
+              Simpan & Ke Beranda
+            </button>
+            <p className="text-[10px] text-slate-400 mt-4 font-medium uppercase tracking-widest">
+              Tunjukkan QR Code ini kepada petugas
+            </p>
+          </div>
+
         </div>
       </div>
     );
@@ -168,7 +220,7 @@ export default function CheckoutPage() {
               </div>
               <div>
                 <label className="text-xs font-bold text-[#0F172A] uppercase">Tanggal Keberangkatan</label>
-                <input type="date" onChange={(e) => setDate(e.target.value)} className="w-full border-slate-200 rounded-xl p-4 mt-1 font-bold outline-[#0284C7]" />
+                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full border-slate-200 rounded-xl p-4 mt-1 font-bold outline-[#0284C7]" />
               </div>
             </div>
           </div>
@@ -184,25 +236,15 @@ export default function CheckoutPage() {
                   <span className="text-[#0F172A] font-bold">{formatRupiah(item.price * item.quantity)}</span>
                 </div>
               ))}
-              <div className="flex justify-between text-sm font-medium">
-                <span className="text-slate-500">Biaya Aplikasi</span>
-                <span className="text-[#0F172A] font-bold">Rp 15.000</span>
-              </div>
             </div>
             <div className="border-t border-dashed border-slate-200 pt-4 mb-8">
               <div className="flex justify-between items-center">
                 <span className="font-bold text-slate-400 uppercase text-xs">Total Bayar</span>
-                <span className="text-2xl font-black text-[#0284C7]">{formatRupiah(totalPrice + 15000)}</span>
+                <span className="text-2xl font-black text-[#0284C7]">{formatRupiah(totalPrice)}</span>
               </div>
             </div>
 
-            <button 
-              onClick={handlePayment}
-              disabled={isLoading}
-              className={`w-full py-4 rounded-full font-bold text-white transition-all shadow-xl ${
-                isLoading ? 'bg-slate-300' : 'bg-[#0284C7] hover:bg-[#0369A1] shadow-blue-500/20'
-              }`}
-            >
+            <button onClick={handlePayment} disabled={isLoading} className={`w-full py-4 rounded-full font-bold text-white transition-all shadow-xl ${isLoading ? 'bg-slate-300' : 'bg-[#0284C7] hover:bg-[#0369A1] shadow-blue-500/20'}`}>
               {isLoading ? 'Menghubungkan...' : 'Bayar Sekarang'}
             </button>
             <p className="text-[10px] text-center text-slate-400 mt-4 font-medium uppercase tracking-widest">Secure Payment by Midtrans</p>
