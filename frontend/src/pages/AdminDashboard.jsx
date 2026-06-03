@@ -290,11 +290,7 @@ export default function AdminDashboard() {
                   <button onClick={() => setScanMessage(null)} className="block w-full mt-2 text-xs opacity-80 hover:opacity-100">Tutup</button>
                 </div>
               )}
-<<<<<<< HEAD
-              <div className="rounded-xl overflow-hidden aspect-square border-4 border-slate-700 relative bg-black">
-=======
               <div className="rounded-xl overflow-hidden aspect-square border-4 border-slate-700 relative">
->>>>>>> dcf4e73999ac28c27f976bc02fe15506ab62595d
                  <Scanner onScan={(detectedCodes) => { if (detectedCodes && detectedCodes.length > 0) handleScanTicket(detectedCodes[0].rawValue); }} onError={(error) => console.log(error?.message)} />
               </div>
             </div>
