@@ -1,7 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import pkg from 'pg';
+<<<<<<< HEAD
 import midtransClient from 'midtrans-client';
+=======
+>>>>>>> dcf4e73999ac28c27f976bc02fe15506ab62595d
 
 const { Pool } = pkg;
 const app = express();
@@ -24,34 +27,30 @@ pool.connect()
   .catch((err) => console.error('Gagal koneksi ke database:', err.stack));
 
 app.post('/api/tokenize', async (req, res) => {
+    let grossAmount = req.body?.gross_amount || 1265000;
+    const serverKey = "RAHASIA_NEGARA";    
+    const authString = Buffer.from(serverKey + ':').toString('base64');
+    const randomOrderId = "PHW-" + Math.floor(Math.random() * 1000000);
+    const payload = { transaction_details: { order_id: randomOrderId, gross_amount: Number(grossAmount) } };
+
     try {
-        let snap = new midtransClient.Snap({
-            isProduction : false, 
-            serverKey : 'Mid-server-QWKNb8k3lHs7d2hYn8dUOM3j',
-            clientKey : 'Mid-client-G7pClpk5aTmeFySZ'
+        const response = await fetch('https://app.sandbox.midtrans.com/snap/v1/transactions', {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'Authorization': 'Basic ' + authString },
+            body: JSON.stringify(payload)
         });
-
-        let grossAmount = req.body?.gross_amount || 1515000;
-
-        let parameter = {
-            "transaction_details": {
-                "order_id": "PHW-" + Date.now(),
-                "gross_amount": Number(grossAmount)
-            }
-        };
-
-        const transaction = await snap.createTransaction(parameter);
-        
-        console.log("Token berhasil didapat:", transaction.token);
-        res.status(200).json({ token: transaction.token });
-
+        const data = await response.json();
+        if (data.token) res.json({ token: data.token });
+        else res.status(400).json({ error: "Ditolak", details: data });
     } catch (error) {
-        console.error("Error Midtrans:", error.message);
         res.status(500).json({ error: error.message });
     }
 });
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> dcf4e73999ac28c27f976bc02fe15506ab62595d
 app.get('/api/assets', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM assets ORDER BY id ASC');
@@ -105,6 +104,7 @@ app.get('/api/reservations', async (req, res) => {
     const result = await pool.query(queryText);
     res.status(200).json(result.rows);
   } catch (error) {
+<<<<<<< HEAD
     res.status(500).json({ error: "Terjadi kesalahan saat mengambil tiket" });
   }
 });
@@ -124,6 +124,12 @@ app.post('/api/reservations', async (req, res) => {
     }
 });
 
+=======
+    res.status(500).json({ error: "Terjadi kesalahan" });
+  }
+});
+
+>>>>>>> dcf4e73999ac28c27f976bc02fe15506ab62595d
 app.put('/api/reservations/:id/confirm', async (req, res) => {
   try {
     await pool.query("UPDATE reservations SET status = 'Confirmed' WHERE id = $1", [req.params.id]);
@@ -143,7 +149,10 @@ app.put('/api/reservations/:id/complete', async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> dcf4e73999ac28c27f976bc02fe15506ab62595d
 app.get('/api/finance', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM transactions ORDER BY date DESC');

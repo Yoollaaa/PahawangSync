@@ -38,5 +38,3 @@ CREATE TABLE transactions (
 INSERT INTO transactions (type, amount, description) VALUES
 ('Pemasukan', 1500000, 'Pendapatan Sewa Villa Cendana'),
 ('Pemasukan', 800000, 'Pendapatan Sewa Perahu Motor 10 Pax');
-
-ALTER TABLE reservations ADD COLUMN total_price INTEGER;

@@ -87,27 +87,14 @@ export default function AdminDashboard() {
   const handleScanTicket = async (text) => {
     if (text) {
       try {
-        const parts = text.split('-'); 
-        
-        const idTiketAsli = parts[2]; 
-
-        if (!idTiketAsli) {
-            setScanMessage({ type: 'error', text: 'Format QR Code tidak valid!' });
-            return;
-        }
-
-        const response = await fetch(`http://localhost:5000/api/reservations/${idTiketAsli}/complete`, { method: 'PUT' });
-        
+        const response = await fetch(`http://localhost:5000/api/reservations/${text}/complete`, { method: 'PUT' });
         if (response.ok) {
-          setScanMessage({ type: 'success', text: `Berhasil! Tiket #${idTiketAsli} telah divalidasi.` });
+          setScanMessage({ type: 'success', text: `Berhasil! Tiket #${text} telah digunakan.` });
           fetchReservations();
         } else {
-          setScanMessage({ type: 'error', text: `Gagal. Tiket #${idTiketAsli} tidak ditemukan.` });
+          setScanMessage({ type: 'error', text: `Gagal. Tiket #${text} tidak ditemukan.` });
         }
-      } catch (e) { 
-        console.error(e); 
-        setScanMessage({ type: 'error', text: 'Terjadi kesalahan jaringan.' });
-      }
+      } catch (e) { console.error(e); }
     }
   };
 
@@ -303,7 +290,11 @@ export default function AdminDashboard() {
                   <button onClick={() => setScanMessage(null)} className="block w-full mt-2 text-xs opacity-80 hover:opacity-100">Tutup</button>
                 </div>
               )}
+<<<<<<< HEAD
               <div className="rounded-xl overflow-hidden aspect-square border-4 border-slate-700 relative bg-black">
+=======
+              <div className="rounded-xl overflow-hidden aspect-square border-4 border-slate-700 relative">
+>>>>>>> dcf4e73999ac28c27f976bc02fe15506ab62595d
                  <Scanner onScan={(detectedCodes) => { if (detectedCodes && detectedCodes.length > 0) handleScanTicket(detectedCodes[0].rawValue); }} onError={(error) => console.log(error?.message)} />
               </div>
             </div>
