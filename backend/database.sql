@@ -38,3 +38,8 @@ CREATE TABLE transactions (
 INSERT INTO transactions (type, amount, description) VALUES
 ('Pemasukan', 1500000, 'Pendapatan Sewa Villa Cendana'),
 ('Pemasukan', 800000, 'Pendapatan Sewa Perahu Motor 10 Pax');
+
+ALTER TABLE reservations ADD COLUMN total_price INTEGER;
+ALTER TABLE reservations ADD COLUMN order_id VARCHAR(255);
+ALTER TABLE assets ADD COLUMN image_url TEXT;
+ALTER TABLE assets ADD COLUMN description TEXT;
