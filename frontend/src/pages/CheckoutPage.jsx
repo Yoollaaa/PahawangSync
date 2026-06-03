@@ -7,7 +7,6 @@ export default function CheckoutPage() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // 1. STATE & PENYIMPANAN
   const [cart, setCart] = useState(() => {
     if (location.state?.cart) return location.state.cart;
     const savedCart = localStorage.getItem('phw_cart');
@@ -23,7 +22,6 @@ export default function CheckoutPage() {
   const [date, setDate] = useState(() => localStorage.getItem('phw_date') || '');
   const [user, setUser] = useState(null);
   
-  // Gembok Anti-Dobel untuk AutoPay
   const autoPayLock = useRef(false);
 
   useEffect(() => {
@@ -90,7 +88,6 @@ export default function CheckoutPage() {
         return;
       }
 
-      // Pastikan script Midtrans sudah benar-benar siap
       if (!window.snap) {
         alert("Sistem keamanan Midtrans sedang memuat, mohon tunggu beberapa detik dan klik bayar lagi.");
         return;
@@ -120,23 +117,21 @@ export default function CheckoutPage() {
     }
   }, [date, totalPrice, navigate]);
 
-  // 5. FITUR AUTO-PAY YANG SUPER PINTAR & SABAR
+  // 5. FITUR AUTO-PAY
   useEffect(() => {
     if (location.state?.autoPay && date && !isSuccess && !autoPayLock.current) {
-      autoPayLock.current = true; // Kunci segera agar tidak dieksekusi berulang kali
+      autoPayLock.current = true; 
       
       console.log("Auto-Pay aktif! Menunggu Midtrans siap...");
       
-      // Cek setiap 500ms (setengah detik), apakah Midtrans sudah selesai didownload?
       const checkMidtrans = setInterval(() => {
         if (window.snap) {
           console.log("Midtrans siap! Membuka pop-up pembayaran otomatis...");
-          clearInterval(checkMidtrans); // Hentikan pengecekan
-          handlePayment(); // Tembak pembayarannya!
+          clearInterval(checkMidtrans); 
+          handlePayment(); 
         }
       }, 500);
 
-      // Batas waktu pengecekan (timeout) 10 detik agar tidak nge-hang
       setTimeout(() => clearInterval(checkMidtrans), 10000); 
     }
   }, [location.state?.autoPay, date, isSuccess, handlePayment]);
@@ -162,7 +157,8 @@ export default function CheckoutPage() {
                   customer_name: user.name,
                   booking_date: date,
                   quantity: item.quantity,
-                  total_price: item.price * item.quantity
+                  total_price: item.price * item.quantity,
+                  order_id: currentOrderId // <--- DITAMBAHKAN DI SINI
                 })
               });
             }
@@ -188,7 +184,6 @@ export default function CheckoutPage() {
 
   if (!user) return null;
 
-  // TAMPILAN TIKET JIKA SUKSES
   if (isSuccess) {
     const finalTicketId = ticketId || urlParams.get('ticket') || orderIdMidtrans || fallbackId;
     return (
@@ -218,7 +213,6 @@ export default function CheckoutPage() {
     );
   }
 
-  // TAMPILAN HALAMAN CHECKOUT NORMAL
   return (
     <div className="min-h-screen bg-[#F4F8FB] text-[#0F172A] font-sans pt-28 pb-12">
       <nav className="fixed top-0 w-full bg-white/80 backdrop-blur-md border-b border-slate-100 h-20 flex items-center px-6 z-50">
