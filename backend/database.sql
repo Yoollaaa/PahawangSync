@@ -43,3 +43,14 @@ ALTER TABLE reservations ADD COLUMN total_price INTEGER;
 ALTER TABLE reservations ADD COLUMN order_id VARCHAR(255);
 ALTER TABLE assets ADD COLUMN image_url TEXT;
 ALTER TABLE assets ADD COLUMN description TEXT;
+
+DROP TABLE IF EXISTS users;
+
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    password VARCHAR(100) NOT NULL,
+    role VARCHAR(20) DEFAULT 'wisatawan'
+);

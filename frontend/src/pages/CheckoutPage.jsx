@@ -32,7 +32,6 @@ export default function CheckoutPage() {
     if (date) localStorage.setItem('phw_date', date);
   }, [cart, totalPrice, date]);
 
-  // 2. CEK STATUS MIDTRANS DARI URL
   const urlParams = new URLSearchParams(window.location.search);
   const paramStatus = urlParams.get('status');
   const paramMidtrans = urlParams.get('transaction_status');
@@ -44,7 +43,6 @@ export default function CheckoutPage() {
   const [ticketId, setTicketId] = useState('');
   const [fallbackId] = useState("PHW-" + Date.now());
 
-  // 3. INIT USER & MIDTRANS SCRIPT
   useEffect(() => {
     const userData = localStorage.getItem('user');
     if (!userData) navigate('/login');
@@ -64,7 +62,6 @@ export default function CheckoutPage() {
     }
   }, [navigate, cart.length, isSuccess]);
 
-  // 4. FUNGSI PEMBAYARAN UTAMA
   const handlePayment = useCallback(async () => {
     if (!date) {
       alert("Mohon pilih tanggal keberangkatan terlebih dahulu!");
@@ -117,7 +114,6 @@ export default function CheckoutPage() {
     }
   }, [date, totalPrice, navigate]);
 
-  // 5. FITUR AUTO-PAY
   useEffect(() => {
     if (location.state?.autoPay && date && !isSuccess && !autoPayLock.current) {
       autoPayLock.current = true; 
@@ -136,7 +132,6 @@ export default function CheckoutPage() {
     }
   }, [location.state?.autoPay, date, isSuccess, handlePayment]);
 
-  // 6. AUTO-SAVE KE DATABASE BILA SUKSES
   useEffect(() => {
     const saveOrderToDatabase = async () => {
       if (isPaymentSuccess && user && cart.length > 0) {
@@ -158,7 +153,7 @@ export default function CheckoutPage() {
                   booking_date: date,
                   quantity: item.quantity,
                   total_price: item.price * item.quantity,
-                  order_id: currentOrderId // <--- DITAMBAHKAN DI SINI
+                  order_id: currentOrderId 
                 })
               });
             }
