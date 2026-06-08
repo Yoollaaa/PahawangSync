@@ -118,7 +118,7 @@ export default function AdminDashboard() {
     } catch (e) { console.error(e); }
   };
 
-  const handleScanTicket = async (text) => {
+ const handleScanTicket = async (text) => {
     if (text) {
       try {
         const idTiketAsli = text; 
@@ -134,7 +134,8 @@ export default function AdminDashboard() {
           setScanMessage({ type: 'success', text: `Berhasil! Tiket #${idTiketAsli} telah divalidasi.` });
           fetchReservations(); 
         } else {
-          setScanMessage({ type: 'error', text: `Gagal. Tiket #${idTiketAsli} tidak ditemukan di sistem.` });
+          const errorData = await response.json();
+          setScanMessage({ type: 'error', text: errorData.error || `Gagal memvalidasi tiket #${idTiketAsli}.` });
         }
       } catch (e) { 
         console.error(e); 

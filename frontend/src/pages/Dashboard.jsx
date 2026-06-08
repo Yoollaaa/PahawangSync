@@ -24,7 +24,7 @@ export default function Dashboard() {
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false); 
+  const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
 
   const [profileFormData, setProfileFormData] = useState({ name: '', email: '', phone: '' });
 
@@ -51,11 +51,19 @@ export default function Dashboard() {
   }, [location]);
 
   useEffect(() => {
-    const userData = localStorage.getItem('user');
-    if (!userData) {
+    const sessionData = localStorage.getItem('user');
+    if (!sessionData) {
       navigate('/login');
     } else {
-      setUser(JSON.parse(userData));
+      let parsedUser = JSON.parse(sessionData);
+      const usersDB = JSON.parse(localStorage.getItem('usersDB')) || [];
+      const fullUserData = usersDB.find(u => u.email === parsedUser.email);
+      
+      if (fullUserData) {
+        parsedUser = { ...parsedUser, ...fullUserData };
+        localStorage.setItem('user', JSON.stringify(parsedUser)); 
+      }
+      setUser(parsedUser);
     }
 
     const fetchProducts = async () => {
@@ -68,7 +76,7 @@ export default function Dashboard() {
         }));
         setProducts(formattedData);
       } catch (error) {
-        console.error("Gagal mengambil data produk dari server:", error);
+        console.error("Gagal mengambil data produk:", error);
       }
     };
     
@@ -86,13 +94,15 @@ export default function Dashboard() {
       const allTickets = Array.isArray(response.data) ? response.data : (response.data.data || []);
       
       const myTickets = allTickets.filter(ticket => {
-        const namaDiDatabase = ticket.customer_name ? ticket.customer_name.toLowerCase().trim() : '';
-        const namaLogin = parsedUser.name ? parsedUser.name.toLowerCase().trim() : '';
-        return namaDiDatabase === namaLogin;
+        const emailDiDatabase = ticket.customer_email ? ticket.customer_email.toLowerCase().trim() : '';
+        const emailLogin = parsedUser.email ? parsedUser.email.toLowerCase().trim() : '';
+        
+        // Memastikan email cocok dan tidak kosong
+        return emailDiDatabase === emailLogin && emailDiDatabase !== '';
       });
       setUserTickets(myTickets);
     } catch (error) {
-      console.error("Gagal mengambil data tiket dari server:", error);
+      console.error("Gagal mengambil data tiket:", error);
     }
   };
 
@@ -121,6 +131,12 @@ export default function Dashboard() {
     const updatedUser = { ...user, ...profileFormData };
     setUser(updatedUser);
     localStorage.setItem('user', JSON.stringify(updatedUser));
+    
+    const usersDB = JSON.parse(localStorage.getItem('usersDB')) || [];
+    const updatedUsersDB = usersDB.map(u => 
+      u.email === updatedUser.email ? { ...u, ...updatedUser } : u
+    );
+    localStorage.setItem('usersDB', JSON.stringify(updatedUsersDB));
     
     setIsEditProfileModalOpen(false);
     setIsProfileModalOpen(true);
@@ -165,7 +181,6 @@ export default function Dashboard() {
 
   const totalPrice = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
-
   const formatRupiah = (number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
 
   if (!user) return null;
@@ -269,50 +284,25 @@ export default function Dashboard() {
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-[#0F172A]/60 backdrop-blur-sm p-4">
           <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl p-8 relative transform transition-all animate-[bounce_0.3s_ease-out]">
             <button onClick={() => { setIsEditProfileModalOpen(false); setIsProfileModalOpen(true); }} className="absolute top-6 right-6 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full font-bold text-slate-500 hover:bg-slate-200 transition-colors">✕</button>
-            
             <div className="flex items-center gap-3 mb-8 border-b border-slate-100 pb-4">
               <div className="w-10 h-10 bg-[#E0F2FE] text-[#0284C7] rounded-full flex items-center justify-center font-bold">✎</div>
               <h3 className="text-xl font-black text-[#0F172A]">Edit Profil</h3>
             </div>
-
             <form onSubmit={handleSaveProfile} className="space-y-4">
               <div>
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Nama Lengkap</label>
-                <input 
-                  type="text" 
-                  required 
-                  value={profileFormData.name} 
-                  onChange={(e) => setProfileFormData({...profileFormData, name: e.target.value})} 
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-bold text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all"
-                />
+                <input type="text" required value={profileFormData.name} onChange={(e) => setProfileFormData({...profileFormData, name: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-bold text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all" />
               </div>
-              
               <div>
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Alamat Email</label>
-                <input 
-                  type="email" 
-                  required 
-                  value={profileFormData.email} 
-                  onChange={(e) => setProfileFormData({...profileFormData, email: e.target.value})} 
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-bold text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all"
-                />
+                <input type="email" required value={profileFormData.email} onChange={(e) => setProfileFormData({...profileFormData, email: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-bold text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all" />
               </div>
-
               <div>
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Nomor Telepon (WhatsApp)</label>
-                <input 
-                  type="tel" 
-                  placeholder="Contoh: 081234567890"
-                  value={profileFormData.phone} 
-                  onChange={(e) => setProfileFormData({...profileFormData, phone: e.target.value})} 
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-bold text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all"
-                />
+                <input type="tel" placeholder="Contoh: 081234567890" value={profileFormData.phone} onChange={(e) => setProfileFormData({...profileFormData, phone: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-bold text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all" />
               </div>
-
               <div className="pt-4 mt-4">
-                <button type="submit" className="w-full py-4 rounded-full bg-[#0284C7] text-white font-bold hover:bg-[#0369A1] transition-all shadow-lg shadow-blue-500/30">
-                  Simpan Perubahan
-                </button>
+                <button type="submit" className="w-full py-4 rounded-full bg-[#0284C7] text-white font-bold hover:bg-[#0369A1] transition-all shadow-lg shadow-blue-500/30">Simpan Perubahan</button>
               </div>
             </form>
           </div>
@@ -323,19 +313,13 @@ export default function Dashboard() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A]/60 backdrop-blur-sm p-4">
           <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl p-8 relative transform transition-all animate-[bounce_0.3s_ease-out]">
             <button onClick={() => setIsProfileModalOpen(false)} className="absolute top-6 right-6 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full font-bold text-slate-500 hover:bg-slate-200 transition-colors">✕</button>
-            
             <div className="text-center mb-8 mt-2">
-              <div className="w-24 h-24 bg-[#E0F2FE] text-[#0284C7] rounded-full flex items-center justify-center text-4xl font-black mx-auto mb-4 border-4 border-white shadow-lg">
-                {user.name.charAt(0).toUpperCase()}
-              </div>
+              <div className="w-24 h-24 bg-[#E0F2FE] text-[#0284C7] rounded-full flex items-center justify-center text-4xl font-black mx-auto mb-4 border-4 border-white shadow-lg">{user.name.charAt(0).toUpperCase()}</div>
               <h3 className="text-2xl font-black text-[#0F172A] leading-tight">{user.name}</h3>
               <p className="text-slate-500 text-sm font-medium mt-1">{user.email || 'wisatawan@pahawang.com'}</p>
               {user.phone && <p className="text-slate-400 text-xs font-bold mt-1">📞 {user.phone}</p>}
-              <span className="inline-block mt-3 px-3 py-1 bg-blue-50 border border-blue-100 text-[#0284C7] text-[10px] font-bold rounded-full uppercase tracking-widest">
-                Pelanggan
-              </span>
+              <span className="inline-block mt-3 px-3 py-1 bg-blue-50 border border-blue-100 text-[#0284C7] text-[10px] font-bold rounded-full uppercase tracking-widest">Pelanggan</span>
             </div>
-
             <div className="bg-slate-50 rounded-2xl p-5 mb-8 border border-slate-100 grid grid-cols-2 gap-4">
                <div className="text-center border-r border-slate-200">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Tiket</p>
@@ -343,19 +327,12 @@ export default function Dashboard() {
                </div>
                <div className="text-center">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Belanja</p>
-                  <p className="text-lg mt-1 font-black text-[#0284C7]">
-                    {formatRupiah(userTickets.reduce((sum, t) => sum + Number(t.total_price), 0))}
-                  </p>
+                  <p className="text-lg mt-1 font-black text-[#0284C7]">{formatRupiah(userTickets.reduce((sum, t) => sum + Number(t.total_price), 0))}</p>
                </div>
             </div>
-
             <div className="space-y-3">
-               <button onClick={handleOpenEditProfile} className="w-full py-4 rounded-2xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition-all flex items-center justify-between px-6">
-                  Edit Profil <span>➔</span>
-               </button>
-               <button onClick={handleLogout} className="w-full py-4 rounded-2xl bg-red-50 text-red-500 font-bold hover:bg-red-100 transition-all flex items-center justify-between px-6">
-                  Keluar Akun <span>➔</span>
-               </button>
+               <button onClick={handleOpenEditProfile} className="w-full py-4 rounded-2xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition-all flex items-center justify-between px-6">Edit Profil <span>➔</span></button>
+               <button onClick={handleLogout} className="w-full py-4 rounded-2xl bg-red-50 text-red-500 font-bold hover:bg-red-100 transition-all flex items-center justify-between px-6">Keluar Akun <span>➔</span></button>
             </div>
           </div>
         </div>
@@ -369,33 +346,20 @@ export default function Dashboard() {
             {cart.length > 0 ? (
               <div>
                 <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl mb-6">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="text-amber-500 text-xl">⏳</span>
-                    <h4 className="font-bold text-amber-600">Menunggu Pembayaran</h4>
-                  </div>
+                  <div className="flex items-center gap-3 mb-2"><span className="text-amber-500 text-xl">⏳</span><h4 className="font-bold text-amber-600">Menunggu Pembayaran</h4></div>
                   <p className="text-sm text-amber-700/80 font-medium">Kamu memiliki pesanan wisata yang belum diselesaikan. Yuk, bayar sekarang agar e-tiket bisa diterbitkan!</p>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-6">
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Ringkasan Tagihan</h4>
                   <div className="space-y-3 mb-4">
                     {cart.map((item, idx) => (
-                      <div key={idx} className="flex justify-between text-sm">
-                        <span className="text-slate-500 font-medium">{item.quantity}x {item.name}</span>
-                        <span className="font-bold text-[#0F172A]">{formatRupiah(item.price * item.quantity)}</span>
-                      </div>
+                      <div key={idx} className="flex justify-between text-sm"><span className="text-slate-500 font-medium">{item.quantity}x {item.name}</span><span className="font-bold text-[#0F172A]">{formatRupiah(item.price * item.quantity)}</span></div>
                     ))}
                   </div>
-                  <div className="border-t border-slate-200 pt-3 flex justify-between items-center">
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Tagihan</span>
-                    <span className="text-xl font-black text-[#0284C7]">{formatRupiah(totalPrice)}</span>
-                  </div>
+                  <div className="border-t border-slate-200 pt-3 flex justify-between items-center"><span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Tagihan</span><span className="text-xl font-black text-[#0284C7]">{formatRupiah(totalPrice)}</span></div>
                 </div>
-                <button onClick={() => { setIsPaymentModalOpen(false); navigate('/checkout', { state: { cart, totalPrice, autoPay: true } }); }} className="w-full py-4 rounded-full bg-[#0F172A] text-white font-bold hover:bg-[#1E293B] shadow-lg shadow-slate-900/20 transition-all flex items-center justify-center gap-2">
-                  Lanjutkan Pembayaran <span>➔</span>
-                </button>
-                <button onClick={() => { setCart([]); setIsPaymentModalOpen(false); }} className="w-full text-center mt-4 text-xs font-bold text-red-400 hover:text-red-500 transition-colors uppercase tracking-widest">
-                  Batalkan Pesanan
-                </button>
+                <button onClick={() => { setIsPaymentModalOpen(false); navigate('/checkout', { state: { cart, totalPrice, autoPay: true } }); }} className="w-full py-4 rounded-full bg-[#0F172A] text-white font-bold hover:bg-[#1E293B] shadow-lg shadow-slate-900/20 transition-all flex items-center justify-center gap-2">Lanjutkan Pembayaran <span>➔</span></button>
+                <button onClick={() => { setCart([]); setIsPaymentModalOpen(false); }} className="w-full text-center mt-4 text-xs font-bold text-red-400 hover:text-red-500 transition-colors uppercase tracking-widest">Batalkan Pesanan</button>
               </div>
             ) : (
               <div className="text-center py-8">

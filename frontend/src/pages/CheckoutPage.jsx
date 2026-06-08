@@ -150,6 +150,7 @@ export default function CheckoutPage() {
                 body: JSON.stringify({
                   asset_id: item.id,
                   customer_name: user.name,
+                  customer_email: user.email,
                   booking_date: date,
                   quantity: item.quantity,
                   total_price: item.price * item.quantity,

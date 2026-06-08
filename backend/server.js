@@ -119,27 +119,61 @@ app.get('/api/reservations', async (req, res) => {
 });
 
 app.post('/api/reservations', async (req, res) => {
-    const { asset_id, customer_name, booking_date, quantity, total_price, order_id } = req.body; 
+    const { asset_id, customer_name, customer_email, booking_date, quantity, total_price, order_id } = req.body; 
     try {
-        const result = await pool.query(`INSERT INTO reservations (asset_id, customer_name, booking_date, quantity, total_price, status, order_id) VALUES ($1, $2, $3, $4, $5, 'Pending', $6) RETURNING *`, [asset_id, customer_name, booking_date, quantity, total_price, order_id]);
-        await pool.query(`INSERT INTO transactions (type, amount, description) VALUES ('Pemasukan', $1, $2)`, [total_price, `Tiket: ${customer_name}`]);
-        res.status(201).json({ data: result.rows[0] });
-    } catch (error) { res.status(500).json({ error: "Gagal" }); }
-});
+        const queryText = `INSERT INTO reservations (asset_id, customer_name, customer_email, booking_date, quantity, total_price, status, order_id) VALUES ($1, $2, $3, $4, $5, $6, 'Pending', $7) RETURNING *`;
+        const result = await pool.query(queryText, [asset_id, customer_name, customer_email, booking_date, quantity, total_price, order_id]);
+        
+        const deskripsiPemasukan = `Pendapatan tiket wisata dari: ${customer_name} (ID: ${order_id})`;
+        await pool.query(
+            `INSERT INTO transactions (type, amount, description) VALUES ('Pemasukan', $1, $2)`,
+            [total_price, deskripsiPemasukan]
+        );
 
-app.put('/api/reservations/:id/confirm', async (req, res) => {
-  try { await pool.query("UPDATE reservations SET status = 'Confirmed' WHERE id = $1", [req.params.id]); res.status(200).json({ message: "OK" }); }
-  catch (error) { res.status(500).json({ error: "Gagal" }); }
+        res.status(201).json({ message: "Tiket aman!", data: result.rows[0] });
+    } catch (error) {
+        console.error("Gagal:", error);
+        res.status(500).json({ error: "Gagal menyimpan data" });
+    }
 });
 
 app.put('/api/reservations/:id/complete', async (req, res) => {
   try {
-    const result = await pool.query("UPDATE reservations SET status = 'Completed' WHERE order_id = $1 RETURNING *", [req.params.id]);
-    res.status(200).json({ data: result.rows[0] });
-  } catch (error) { res.status(500).json({ error: "Gagal" }); }
+    const qrData = req.params.id; 
+    let ticketId = qrData;
+
+    if (qrData.includes('PHW-TICKET-')) {
+      ticketId = qrData.split('-')[2]; 
+    }
+
+    console.log("=========================================");
+    console.log("→ Ada yang mencoba SCAN TIKET dengan ID:", ticketId);
+
+    const checkTicket = await pool.query('SELECT status FROM reservations WHERE id = $1', [ticketId]);
+    
+    if (checkTicket.rows.length === 0) {
+      console.log("❌ Hasil: Tiket TIDAK DITEMUKAN di database.");
+      return res.status(404).json({ error: "Tiket tidak ditemukan di sistem!" });
+    }
+
+    const currentStatus = checkTicket.rows[0].status ? checkTicket.rows[0].status.trim() : '';
+    console.log("🔍 Status tiket di database saat ini:", currentStatus);
+
+    if (currentStatus === 'Completed') {
+      console.log("🚫 Hasil: DITOLAK! Karena statusnya sudah Completed.");
+      return res.status(400).json({ error: "Gagal! Tiket ini sudah pernah digunakan." });
+    }
+
+    await pool.query("UPDATE reservations SET status = 'Completed' WHERE id = $1", [ticketId]);
+    console.log("✅ Hasil: SUKSES! Status tiket berhasil diubah ke 'Completed'.");
+    console.log("=========================================");
+    
+    res.status(200).json({ message: "Selesai!" });
+  } catch (error) {
+    console.error("Error validasi tiket:", error);
+    res.status(500).json({ error: "Gagal memproses validasi" });
+  }
 });
-
-
 app.get('/api/finance', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM transactions ORDER BY date DESC');

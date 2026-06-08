@@ -54,3 +54,6 @@ CREATE TABLE users (
     password VARCHAR(100) NOT NULL,
     role VARCHAR(20) DEFAULT 'wisatawan'
 );
+
+ALTER TABLE reservations ADD COLUMN customer_email VARCHAR(100);
+ALTER TABLE reservations ADD COLUMN order_id VARCHAR(100);
