@@ -22,40 +22,28 @@ pool.connect()
   .then(() => console.log('Database PostgreSQL sukses terhubung!'))
   .catch((err) => console.error('Gagal koneksi ke database:', err.stack));
 
-
 app.post('/api/register', async (req, res) => {
   const { name, email, phone, password, role } = req.body;
   try {
     const checkUser = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (checkUser.rows.length > 0) {
-      return res.status(400).json({ message: 'Email sudah terdaftar. Silakan gunakan email lain.' });
-    }
+    if (checkUser.rows.length > 0) return res.status(400).json({ message: 'Email sudah terdaftar.' });
+    
     await pool.query(
       'INSERT INTO users (name, email, phone, password, role) VALUES ($1, $2, $3, $4, $5)',
       [name, email, phone, password, role || 'wisatawan']
     );
     res.status(201).json({ message: 'Pendaftaran sukses!' });
-  } catch (error) {
-    console.error("Error register:", error);
-    res.status(500).json({ message: 'Terjadi kesalahan pada server.' });
-  }
+  } catch (error) { res.status(500).json({ message: 'Terjadi kesalahan pada server.' }); }
 });
 
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
   try {
     const result = await pool.query('SELECT * FROM users WHERE email = $1 AND password = $2', [email, password]);
-    if (result.rows.length > 0) {
-      res.status(200).json(result.rows[0]);
-    } else {
-      res.status(401).json({ message: 'Email atau password salah!' });
-    }
-  } catch (error) {
-    console.error("Error login:", error);
-    res.status(500).json({ message: 'Terjadi kesalahan pada server.' });
-  }
+    if (result.rows.length > 0) res.status(200).json(result.rows[0]);
+    else res.status(401).json({ message: 'Email atau password salah!' });
+  } catch (error) { res.status(500).json({ message: 'Terjadi kesalahan pada server.' }); }
 });
-
 
 app.post('/api/tokenize', async (req, res) => {
     try {
@@ -96,14 +84,13 @@ app.post('/api/tokenize', async (req, res) => {
     }
 });
 
-// --- INI BAGIAN YANG DIUBAH AGAR STOK DINAMIS ---
 app.get('/api/assets', async (req, res) => {
   try { 
     const query = `
       SELECT 
         a.*, 
         (a.stock - COALESCE(
-          (SELECT SUM(quantity) FROM reservations WHERE asset_id = a.id AND booking_date = CURRENT_DATE), 0
+          (SELECT SUM(quantity) FROM reservations WHERE asset_id = a.id AND DATE(booking_date) = CURRENT_DATE), 0
         )) AS stok_hari_ini 
       FROM assets a 
       ORDER BY a.id ASC
@@ -113,7 +100,6 @@ app.get('/api/assets', async (req, res) => {
   }
   catch (error) { res.status(500).json({ error: "Gagal" }); }
 });
-// ------------------------------------------------
 
 app.post('/api/assets', async (req, res) => {
   const { name, category, price, stock, image_url, description } = req.body; 
@@ -145,21 +131,19 @@ app.delete('/api/assets/:id', async (req, res) => {
   catch (error) { res.status(500).json({ error: "Gagal" }); }
 });
 
-app.get('/api/assets', async (req, res) => {
-  try { 
-    const query = `
-      SELECT 
-        a.*, 
-        (a.stock - COALESCE(
-          (SELECT SUM(quantity) FROM reservations WHERE asset_id = a.id AND DATE(booking_date) = CURRENT_DATE), 0
-        )) AS stok_hari_ini 
-      FROM assets a 
-      ORDER BY a.id ASC
-    `;
-    const result = await pool.query(query); 
-    res.status(200).json(result.rows); 
+app.get('/api/reservations', async (req, res) => {
+  try {
+    const result = await pool.query(`
+        SELECT r.*, a.name as asset_name, a.category as asset_category 
+        FROM reservations r 
+        JOIN assets a ON r.asset_id = a.id 
+        ORDER BY r.booking_date ASC
+    `);
+    res.status(200).json(result.rows);
+  } catch (error) { 
+    console.error("Error GET reservations:", error);
+    res.status(500).json({ error: "Gagal mengambil data" }); 
   }
-  catch (error) { res.status(500).json({ error: "Gagal" }); }
 });
 
 app.post('/api/reservations', async (req, res) => {
@@ -190,27 +174,15 @@ app.put('/api/reservations/:id/complete', async (req, res) => {
       ticketId = qrData.split('-')[2]; 
     }
 
-    console.log("=========================================");
-    console.log("→ Ada yang mencoba SCAN TIKET dengan ID:", ticketId);
-
     const checkTicket = await pool.query('SELECT status FROM reservations WHERE id = $1', [ticketId]);
     
-    if (checkTicket.rows.length === 0) {
-      console.log("❌ Hasil: Tiket TIDAK DITEMUKAN di database.");
-      return res.status(404).json({ error: "Tiket tidak ditemukan di sistem!" });
-    }
+    if (checkTicket.rows.length === 0) return res.status(404).json({ error: "Tiket tidak ditemukan di sistem!" });
 
     const currentStatus = checkTicket.rows[0].status ? checkTicket.rows[0].status.trim() : '';
-    console.log("🔍 Status tiket di database saat ini:", currentStatus);
 
-    if (currentStatus === 'Completed') {
-      console.log("🚫 Hasil: DITOLAK! Karena statusnya sudah Completed.");
-      return res.status(400).json({ error: "Gagal! Tiket ini sudah pernah digunakan." });
-    }
+    if (currentStatus === 'Completed') return res.status(400).json({ error: "Gagal! Tiket ini sudah pernah digunakan." });
 
     await pool.query("UPDATE reservations SET status = 'Completed' WHERE id = $1", [ticketId]);
-    console.log("✅ Hasil: SUKSES! Status tiket berhasil diubah ke 'Completed'.");
-    console.log("=========================================");
     
     res.status(200).json({ message: "Selesai!" });
   } catch (error) {
