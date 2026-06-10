@@ -71,8 +71,8 @@ export default function Dashboard() {
         const response = await axios.get('http://localhost:5000/api/assets');
         const formattedData = response.data.map(item => ({
           ...item,
-          image: "https://images.unsplash.com/photo-1590523277543-a94d2e4eb00b?q=80&w=800", 
-          description: "Fasilitas berkualitas dan pelayanan terbaik di Pulau Pahawang."
+          image: item.image_url || "https://images.unsplash.com/photo-1590523277543-a94d2e4eb00b?q=80&w=800", 
+          description: item.description || "Fasilitas berkualitas dan pelayanan terbaik di Pulau Pahawang."
         }));
         setProducts(formattedData);
       } catch (error) {
@@ -97,7 +97,6 @@ export default function Dashboard() {
         const emailDiDatabase = ticket.customer_email ? ticket.customer_email.toLowerCase().trim() : '';
         const emailLogin = parsedUser.email ? parsedUser.email.toLowerCase().trim() : '';
         
-        // Memastikan email cocok dan tidak kosong
         return emailDiDatabase === emailLogin && emailDiDatabase !== '';
       });
       setUserTickets(myTickets);
@@ -207,11 +206,18 @@ export default function Dashboard() {
               {totalItems > 0 && <span className="absolute top-0 right-0 translate-x-1/4 -translate-y-1/4 bg-[#EF4444] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-[#F4F8FB] shadow-sm animate-pulse">{totalItems}</span>}
             </button>
             <div className="w-px h-6 bg-slate-200"></div>
-            <button onClick={handleOpenProfileModal} className="flex items-center gap-2 group cursor-pointer">
-              <div className="w-10 h-10 rounded-full bg-[#E0F2FE] flex items-center justify-center text-[#0284C7] font-bold ring-2 ring-white shadow-sm group-hover:bg-[#0284C7] group-hover:text-white transition-colors">
+            
+            {/* Tombol Profil untuk Logout */}
+            <button 
+              onClick={handleLogout} 
+              title="Keluar / Logout"
+              className="flex items-center gap-2 group cursor-pointer hover:scale-105 active:scale-95 transition-all"
+            >
+              <div className="w-10 h-10 rounded-full bg-[#E0F2FE] group-hover:bg-red-50 group-hover:text-red-500 group-hover:ring-red-200 flex items-center justify-center text-[#0284C7] font-bold ring-2 ring-white shadow-sm transition-all">
                 {user.name.charAt(0).toUpperCase()}
               </div>
             </button>
+
           </div>
         </div>
       </nav>

@@ -24,6 +24,8 @@ export default function CheckoutPage() {
   
   const autoPayLock = useRef(false);
 
+  const hariIni = new Date().toISOString().split('T')[0];
+
   useEffect(() => {
     if (cart.length > 0) {
       localStorage.setItem('phw_cart', JSON.stringify(cart));
@@ -64,7 +66,7 @@ export default function CheckoutPage() {
 
   const handlePayment = useCallback(async () => {
     if (!date) {
-      alert("Mohon pilih tanggal keberangkatan terlebih dahulu!");
+      alert("Mohon pilih tanggal Reservasi terlebih dahulu!");
       return;
     }
 
@@ -75,7 +77,9 @@ export default function CheckoutPage() {
 
       const response = await axios.post('http://localhost:5000/api/tokenize', {
         gross_amount: totalPrice, 
-        order_id: currentOrderId
+        order_id: currentOrderId,
+        cart: cart,
+        booking_date: date
       });
 
       setIsLoading(false);
@@ -109,10 +113,14 @@ export default function CheckoutPage() {
 
     } catch (error) {
       setIsLoading(false);
-      console.error(error);
-      alert("Gagal tersambung ke server pembayaran Midtrans!");
+      if (error.response && error.response.data && error.response.data.error) {
+          alert(error.response.data.error); 
+      } else {
+          console.error(error);
+          alert("Gagal tersambung ke server pembayaran Midtrans!");
+      }
     }
-  }, [date, totalPrice, navigate]);
+  }, [date, totalPrice, cart, navigate]); 
 
   useEffect(() => {
     if (location.state?.autoPay && date && !isSuccess && !autoPayLock.current) {
@@ -134,40 +142,36 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     const saveOrderToDatabase = async () => {
-      if (isPaymentSuccess && user && cart.length > 0) {
+      if (isSuccess && user && cart.length > 0) {
         const currentOrderId = orderIdMidtrans || ticketId || fallbackId;
-        const hasSaved = localStorage.getItem(`saved_db_${currentOrderId}`);
-
-        if (!hasSaved) {
-          localStorage.setItem(`saved_db_${currentOrderId}`, 'true'); 
+        
+        if (!localStorage.getItem(`saved_db_${currentOrderId}`)) {
           console.log("Menyelamatkan tiket ke database...");
           
           try {
-            for (const item of cart) {
-              await fetch('http://localhost:5000/api/reservations', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  asset_id: item.id,
-                  customer_name: user.name,
-                  customer_email: user.email,
-                  booking_date: date,
-                  quantity: item.quantity,
-                  total_price: item.price * item.quantity,
-                  order_id: currentOrderId 
-                })
-              });
-            }
+            await Promise.all(cart.map(item => 
+              axios.post('http://localhost:5000/api/reservations', {
+                asset_id: item.id,
+                customer_name: user.name,
+                customer_email: user.email,
+                booking_date: date,
+                quantity: item.quantity,
+                total_price: item.price * item.quantity,
+                order_id: currentOrderId 
+              })
+            ));
+            
+            localStorage.setItem(`saved_db_${currentOrderId}`, 'true');
             console.log("Tiket berhasil diamankan ke database!");
           } catch (error) {
             console.error("Gagal simpan ke database:", error);
-            localStorage.removeItem(`saved_db_${currentOrderId}`); 
           }
         }
       }
     };
+    
     saveOrderToDatabase();
-  }, [isPaymentSuccess, user, cart, date, orderIdMidtrans, ticketId, fallbackId]);
+  }, [isSuccess]);
 
   const formatRupiah = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
 
@@ -222,7 +226,7 @@ export default function CheckoutPage() {
             <h3 className="text-xl font-bold mb-6">Detail Kontak & Jadwal</h3>
             <div className="space-y-4">
               <div><label className="text-xs font-bold text-slate-400 uppercase">Nama Lengkap</label><input type="text" readOnly value={user.name} className="w-full bg-slate-50 border-none rounded-xl p-4 mt-1 font-bold text-slate-500" /></div>
-              <div><label className="text-xs font-bold text-[#0F172A] uppercase">Tanggal Keberangkatan</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full border-slate-200 rounded-xl p-4 mt-1 font-bold outline-[#0284C7]" /></div>
+              <div><label className="text-xs font-bold text-[#0F172A] uppercase">Tanggal Reservasi</label><input type="date" min={hariIni} value={date} onChange={(e) => setDate(e.target.value)} className="w-full border-slate-200 rounded-xl p-4 mt-1 font-bold outline-[#0284C7]" /></div>
             </div>
           </div>
         </div>

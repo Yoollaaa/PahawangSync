@@ -19,8 +19,8 @@ export default function AdminDashboard() {
 
   const fetchAssets = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/assets');
-      setAssets(await res.json());
+      const res = await axios.get('http://localhost:5000/api/assets');
+      setAssets(res.data);
     } catch (e) { console.error(e); }
   };
 
@@ -59,7 +59,7 @@ export default function AdminDashboard() {
       name: item.name,
       category: item.category,
       price: item.price,
-      stock: item.stock,
+      stock: item.stock, 
       image_url: item.image_url || '', 
       description: item.description || '' 
     });
@@ -91,7 +91,8 @@ export default function AdminDashboard() {
         await axios.post('http://localhost:5000/api/assets', payload);
       }
       
-      fetchAssets(); 
+      await fetchAssets(); 
+      
       setIsModalOpen(false);
       setEditId(null);
       setFormData({ name: '', category: 'Villa', price: '', stock: '', image_url: '', description: '' });
@@ -118,7 +119,7 @@ export default function AdminDashboard() {
     } catch (e) { console.error(e); }
   };
 
- const handleScanTicket = async (text) => {
+  const handleScanTicket = async (text) => {
     if (text) {
       try {
         const idTiketAsli = text; 
@@ -340,7 +341,12 @@ export default function AdminDashboard() {
                         <td className="py-4 px-2">{item.name}</td>
                         <td className="py-4 px-2"><span className="px-3 py-1 bg-slate-100 text-slate-500 rounded text-xs font-bold">{item.category}</span></td>
                         <td className="py-4 px-2">{formatRupiah(item.price)}</td>
-                        <td className="py-4 px-2 text-center">{item.stock}</td>
+                        
+                        <td className="py-4 px-2 text-center">
+                          <span className="font-bold text-[#0284C7]">{item.stok_hari_ini !== undefined ? item.stok_hari_ini : item.stock}</span>
+                          <span className="text-xs text-slate-400"> / {item.stock}</span>
+                        </td>
+
                         <td className="py-4 px-2"><span className={`px-3 py-1 rounded text-xs font-bold ${item.status === 'Tersedia' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>{item.status}</span></td>
                         <td className="py-4 px-2 text-right space-x-2">
                           <button onClick={() => handleEditClick(item)} className="px-3 py-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded text-xs font-bold transition-all">Edit</button>
@@ -530,7 +536,7 @@ export default function AdminDashboard() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase">Stok (Unit)</label>
+                    <label className="text-xs font-bold text-slate-500 uppercase">Total Unit Pabrik</label>
                     <input type="number" required min="0" placeholder="0" value={formData.stock} onChange={(e) => setFormData({...formData, stock: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 mt-1 text-sm font-medium focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7]" />
                   </div>
                 </div>
@@ -553,4 +559,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-    

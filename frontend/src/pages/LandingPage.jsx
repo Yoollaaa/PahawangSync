@@ -120,7 +120,7 @@ export default function LandingPage() {
                 </h2>
 
                 <p className="text-slate-700 text-lg font-medium mb-10 max-w-md leading-relaxed bg-white/60 inline-block px-5 py-3 rounded-2xl backdrop-blur-md border border-white shadow-sm">
-                  Tinggalkan kerumitan. Nikmati kemudahan reservasi villa terapung, perahu wisata, hingga paket snorkeling dalam satu platform digital.
+                  Tinggalkan kerumitan. Nikmati kemudahan reservasi penginapan villa, perahu wisata, penyewaan alat snorkeling, hingga pemesanan kuliner dan oleh-oleh khas Pahawang dalam satu platform digital.
                 </p>
                 
                 <div className="flex flex-wrap gap-4">

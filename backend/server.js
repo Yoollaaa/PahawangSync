@@ -7,7 +7,7 @@ const { Pool } = pkg;
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json()); 
 app.use(express.urlencoded({ extended: true }));
 
 const pool = new Pool({
@@ -59,14 +59,36 @@ app.post('/api/login', async (req, res) => {
 
 app.post('/api/tokenize', async (req, res) => {
     try {
+        const { gross_amount, order_id, cart, booking_date } = req.body;
+
+        if (cart && booking_date) {
+            for (let item of cart) {
+                const assetCheck = await pool.query('SELECT stock FROM assets WHERE id = $1', [item.id]);
+                if (assetCheck.rows.length > 0) {
+                    const kapasitasMaksimal = assetCheck.rows[0].stock;
+                    const bookedCheck = await pool.query(
+                        "SELECT SUM(quantity) as total_booked FROM reservations WHERE asset_id = $1 AND booking_date = $2",
+                        [item.id, booking_date]
+                    );
+                    const jumlahSudahDipesan = Number(bookedCheck.rows[0].total_booked || 0);
+                    const sisaStokTanggalItu = kapasitasMaksimal - jumlahSudahDipesan;
+
+                    if (Number(item.quantity) > sisaStokTanggalItu) {
+                        return res.status(400).json({ 
+                            error: `Gagal! Stok "${item.name}" untuk tanggal tersebut hanya sisa ${sisaStokTanggalItu} unit.` 
+                        });
+                    }
+                }
+            }
+        }
+
         let snap = new midtransClient.Snap({
             isProduction : false, 
             serverKey : 'Mid-server-QWKNb8k3lHs7d2hYn8dUOM3j',
             clientKey : 'Mid-client-G7pClpk5aTmeFySZ'
         });
-        let grossAmount = req.body?.gross_amount || 1515000;
-        let currentOrderId = req.body?.order_id || "PHW-" + Date.now();
-        let parameter = { "transaction_details": { "order_id": currentOrderId, "gross_amount": Number(grossAmount) } };
+        
+        let parameter = { "transaction_details": { "order_id": order_id, "gross_amount": Number(gross_amount) } };
         const transaction = await snap.createTransaction(parameter);
         res.status(200).json({ token: transaction.token });
     } catch (error) {
@@ -74,11 +96,24 @@ app.post('/api/tokenize', async (req, res) => {
     }
 });
 
-
+// --- INI BAGIAN YANG DIUBAH AGAR STOK DINAMIS ---
 app.get('/api/assets', async (req, res) => {
-  try { const result = await pool.query('SELECT * FROM assets ORDER BY id ASC'); res.status(200).json(result.rows); }
+  try { 
+    const query = `
+      SELECT 
+        a.*, 
+        (a.stock - COALESCE(
+          (SELECT SUM(quantity) FROM reservations WHERE asset_id = a.id AND booking_date = CURRENT_DATE), 0
+        )) AS stok_hari_ini 
+      FROM assets a 
+      ORDER BY a.id ASC
+    `;
+    const result = await pool.query(query); 
+    res.status(200).json(result.rows); 
+  }
   catch (error) { res.status(500).json({ error: "Gagal" }); }
 });
+// ------------------------------------------------
 
 app.post('/api/assets', async (req, res) => {
   const { name, category, price, stock, image_url, description } = req.body; 
@@ -110,12 +145,21 @@ app.delete('/api/assets/:id', async (req, res) => {
   catch (error) { res.status(500).json({ error: "Gagal" }); }
 });
 
-
-app.get('/api/reservations', async (req, res) => {
-  try {
-    const result = await pool.query(`SELECT r.*, a.name as asset_name, a.category as asset_category FROM reservations r JOIN assets a ON r.asset_id = a.id ORDER BY r.booking_date ASC`);
-    res.status(200).json(result.rows);
-  } catch (error) { res.status(500).json({ error: "Gagal" }); }
+app.get('/api/assets', async (req, res) => {
+  try { 
+    const query = `
+      SELECT 
+        a.*, 
+        (a.stock - COALESCE(
+          (SELECT SUM(quantity) FROM reservations WHERE asset_id = a.id AND DATE(booking_date) = CURRENT_DATE), 0
+        )) AS stok_hari_ini 
+      FROM assets a 
+      ORDER BY a.id ASC
+    `;
+    const result = await pool.query(query); 
+    res.status(200).json(result.rows); 
+  }
+  catch (error) { res.status(500).json({ error: "Gagal" }); }
 });
 
 app.post('/api/reservations', async (req, res) => {
@@ -174,6 +218,7 @@ app.put('/api/reservations/:id/complete', async (req, res) => {
     res.status(500).json({ error: "Gagal memproses validasi" });
   }
 });
+
 app.get('/api/finance', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM transactions ORDER BY date DESC');
