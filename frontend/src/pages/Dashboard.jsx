@@ -152,7 +152,7 @@ export default function Dashboard() {
     ? products 
     : products.filter(p => p.category === activeCategory);
 
-  const categories = ['Semua', 'Villa', 'Perahu', 'Alat', 'Kuliner', 'Oleh-oleh'];
+  const categories = ['Semua', 'Villa', 'Perahu', 'Alat', 'Kuliner', ];
 
   const confirmAddToCart = () => {
     if (selectedProduct) {
