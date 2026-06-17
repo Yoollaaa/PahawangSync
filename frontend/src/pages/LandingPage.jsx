@@ -7,6 +7,7 @@ import fotoPahawang2 from '../assets/gambar2.jpg';
 import fotoPahawang3 from '../assets/gambar3.jpg';
 
 import bgLanding from '../assets/landingpage.jpg';
+import fotoKano from '../assets/kano.jpg';
 
 function WahanaCard({ image, title, desc }) {
   return (
@@ -179,8 +180,7 @@ export default function LandingPage() {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <WahanaCard image="https://mitra.boatria.com/assets/customers/1242-aeroboatria/b864da5e012a7a5372e9cb0789252e9c.jpg" title="Kano Transparan" desc="Lihat keindahan bawah laut dengan jelas melalui lantai kano yang bening." />
-            <WahanaCard image="https://sc04.alicdn.com/kf/H88233577ca804be7a77f8d1512d51280g.jpg" title="Donut Boat" desc="Wahana unik berbentuk donat, cocok untuk santai di tengah laut." />
+            <WahanaCard image={fotoKano} title="Kano Transparan" desc="Lihat keindahan bawah laut dengan jelas melalui lantai kano yang bening." />                 <WahanaCard image="https://sc04.alicdn.com/kf/H88233577ca804be7a77f8d1512d51280g.jpg" title="Donut Boat" desc="Wahana unik berbentuk donat, cocok untuk santai di tengah laut." />
             <WahanaCard image="https://s2.explorer.id/review/review-1777984997822.jpeg" title="Sea Walker" desc="Berjalan di dasar laut dengan aman, tanpa perlu keahlian menyelam khusus." />
             <WahanaCard image="https://www.bintan-resorts.com/wp-content/uploads/2023/09/banana-boat-from-side.webp" title="Banana Boat" desc="Pacu adrenalin bersama teman-teman dengan meluncur di atas air." />
             <WahanaCard image="https://www.cruisersup.com/cdn/shop/products/DSC_1077-edited-1000_1024x1024.jpg?v=1717086741" title="Paddle Board" desc="Uji keseimbanganmu dengan mendayung di permukaan laut yang tenang." />
