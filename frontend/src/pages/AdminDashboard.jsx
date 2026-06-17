@@ -17,6 +17,8 @@ export default function AdminDashboard() {
   
   const [formData, setFormData] = useState({ name: '', category: 'Villa', price: '', stock: '' });
 
+  useEffect(() => { fetchAssets(); }, []);
+
   const fetchAssets = async () => {
     try {
       const res = await axios.get('http://localhost:5000/api/assets');
@@ -113,10 +115,40 @@ export default function AdminDashboard() {
   };
 
   const handleConfirmReservation = async (id) => {
+    console.log("👉 Mencoba konfirmasi pesanan dengan ID:", id); 
+    
+    if (!id) {
+      alert("Oops! ID pesanan kosong. Cek apakah nama kolom ID di database sudah benar (misal: res.id atau res.booking_id)");
+      return;
+    }
+
     try {
-      const res = await fetch(`http://localhost:5000/api/reservations/${id}/confirm`, { method: 'PUT' });
-      if (res.ok) fetchReservations();
-    } catch (e) { console.error(e); }
+      const response = await fetch(`http://localhost:5000/api/reservations/${id}/confirm`, { 
+        method: 'PUT' 
+      });
+      
+      if (response.ok) {
+        fetchReservations();
+        console.log("✅ Pesanan berhasil dikonfirmasi!");
+      } else {
+        alert(`Gagal mengkonfirmasi! Server menolak dengan status: ${response.status}`);
+      }
+    } catch (e) { 
+      console.error("❌ Error jaringan/server:", e); 
+      alert("Terjadi kesalahan jaringan atau server backend belum menyala.");
+    }
+  };
+
+  const getDisplayStatus = (status, dateString) => {
+    if (status !== 'Confirmed') return status;
+
+    const bookingDate = new Date(dateString);
+    const today = new Date();
+    
+    bookingDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+
+    return bookingDate < today ? 'Completed' : 'Confirmed';
   };
 
   const handleScanTicket = async (text) => {
@@ -388,9 +420,17 @@ export default function AdminDashboard() {
                       </div>
                       <div>
                         {res.status === 'Pending' ? (
-                          <button onClick={() => handleConfirmReservation(res.id)} className="px-4 py-2 bg-[#00B4D8] hover:bg-[#0096C7] text-white rounded text-xs font-bold transition-all shadow-md">Konfirmasi</button>
+                          <button onClick={() => handleConfirmReservation(res.id)} className="px-4 py-2 bg-[#00B4D8] hover:bg-[#0096C7] text-white rounded text-xs font-bold transition-all shadow-md">
+                            Konfirmasi
+                          </button>
                         ) : (
-                          <span className={`px-3 py-1 rounded text-xs font-bold uppercase tracking-wider ${res.status === 'Completed' ? 'bg-slate-100 text-slate-500' : 'bg-emerald-50 text-emerald-600'}`}>{res.status}</span>
+                          <span className={`px-3 py-1 rounded text-xs font-bold uppercase tracking-wider ${
+                            getDisplayStatus(res.status, res.booking_date) === 'Completed' 
+                              ? 'bg-slate-100 text-slate-500' 
+                              : 'bg-emerald-50 text-emerald-600'
+                          }`}>
+                            {getDisplayStatus(res.status, res.booking_date)}
+                          </span>
                         )}
                       </div>
                     </div>

@@ -14,7 +14,7 @@ const pool = new Pool({
   user: 'postgres',
   host: 'localhost',
   database: 'pahawang_sync',
-  password: 'Febby123', 
+  password: '2270', 
   port: 5432,
 });
 
@@ -218,6 +218,26 @@ app.get('/api/dashboard-stats', async (req, res) => {
       guestsToday: Number(guestQuery.rows[0].total_guests || 0) 
     });
   } catch (error) { res.status(500).json({ error: "Gagal" }); }
+});
+
+app.put('/api/reservations/:id/confirm', async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    const result = await pool.query(
+      "UPDATE reservations SET status = 'Completed' WHERE id = $1 RETURNING *",
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Data pesanan tidak ditemukan di database." });
+    }
+    
+    res.status(200).json({ message: "Pesanan berhasil dikonfirmasi!", data: result.rows[0] });
+  } catch (error) {
+    console.error("❌ Error saat konfirmasi:", error.message);
+    res.status(500).json({ error: "Gagal mengkonfirmasi pesanan" });
+  }
 });
 
 app.listen(5000, () => console.log('Backend siap di http://localhost:5000'));
