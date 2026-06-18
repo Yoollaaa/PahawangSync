@@ -57,6 +57,21 @@ app.post('/api/login', async (req, res) => {
   } catch (error) { res.status(500).json({ message: 'Terjadi kesalahan pada server.' }); }
 });
 
+app.get('/api/users/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    const result = await pool.query('SELECT id, name, email, phone, role FROM users WHERE email = $1', [email]);
+    
+    if (result.rows.length > 0) {
+      res.status(200).json({ data: result.rows[0] });
+    } else {
+      res.status(404).json({ message: 'User tidak ditemukan' });
+    }
+  } catch (error) { 
+    res.status(500).json({ message: 'Terjadi kesalahan pada server.' }); 
+  }
+});
+
 app.post('/api/tokenize', async (req, res) => {
     try {
         const { gross_amount, order_id, cart, booking_date } = req.body;
@@ -256,17 +271,14 @@ app.post('/api/admin/register', async (req, res) => {
   const { name, email, password } = req.body;
   
   try {
-    // Cek apakah email sudah dipakai
     const adminExists = await pool.query("SELECT * FROM admins WHERE email = $1", [email]);
     if (adminExists.rows.length > 0) {
       return res.status(400).json({ error: "Email sudah terdaftar sebagai Admin!" });
     }
 
-    // Acak (Hash) password menggunakan bcrypt
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Simpan data admin dengan password yang sudah diacak
     const newAdmin = await pool.query(
       "INSERT INTO admins (name, email, password) VALUES ($1, $2, $3) RETURNING id, name, email",
       [name, email, hashedPassword]
