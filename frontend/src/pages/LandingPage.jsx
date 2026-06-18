@@ -261,9 +261,41 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <footer className="bg-white/70 backdrop-blur-md py-10 text-center border-t border-white mt-10 shadow-lg">
-          <h2 className="text-2xl font-black tracking-tight text-[#0F172A] mb-2 drop-shadow-sm">Pahawang<span className="text-[#0284C7]">Sync</span></h2>
-          <p className="text-slate-600 text-sm font-bold">© 2026 E-Tourism Digital Pahawang. All rights reserved.</p>
+        <footer className="bg-white/70 backdrop-blur-md py-16 text-left border-t border-white mt-20 shadow-[0_-10px_30px_rgba(0,0,0,0.03)] relative z-10">
+          <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-12 text-[#0F172A]">
+            
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-3 mb-2">
+                  <div className="w-9 h-9 rounded-[12px] flex items-center justify-center font-bold text-lg italic bg-[#0284C7] text-white">P</div>
+                  <h2 className="text-xl font-black tracking-tight text-[#0F172A]">Pahawang<span className="text-[#0284C7]">Sync</span></h2>
+              </div>
+              <p className="text-slate-600 text-sm font-medium leading-relaxed pr-4">Platform reservasi wisata Pulau Pahawang terpadu. Eksplorasi mudah, liburan nyaman.</p>
+              <p className="text-slate-400 text-xs font-medium mt-6">© 2026 E-Tourism Digital Pahawang.<br/>All rights reserved.</p>
+            </div>
+
+            <div className="flex flex-col gap-3 pt-2">
+                <h4 className="font-bold text-sm text-[#0F172A] uppercase tracking-wider mb-3">Jelajahi</h4>
+                <a href="#pesona" className="text-sm text-slate-600 hover:text-[#0284C7] font-medium transition-colors">Pesona Wahana</a>
+                <a href="#katalog" className="text-sm text-slate-600 hover:text-[#0284C7] font-medium transition-colors">Katalog Fasilitas</a>
+                <a href="#panduan" className="text-sm text-slate-600 hover:text-[#0284C7] font-medium transition-colors">Panduan Pesan</a>
+            </div>
+
+            <div className="flex flex-col gap-3 pt-2">
+                <h4 className="font-bold text-sm text-[#0F172A] uppercase tracking-wider mb-3">Butuh Bantuan?</h4>
+                <p className="text-slate-600 text-sm font-medium mb-3">Tim kami siap membantu reservasi Anda.</p>
+                
+                <a 
+                  href="https://wa.me/6285273382225" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="inline-flex items-center justify-center gap-3 bg-[#E0F2FE]/80 backdrop-blur-sm px-6 py-4 rounded-full border border-[#BAE6FD] hover:bg-[#BAE6FD] hover:-translate-y-1 transition-all group shadow-sm w-max"
+                >
+                    <span className="text-2xl group-hover:scale-110 transition-transform">💬</span>
+                    <span className="text-xs font-bold text-[#0284C7] uppercase tracking-widest">Hubungi Help Desk</span>
+                </a>
+            </div>
+
+          </div>
         </footer>
         
       </div>

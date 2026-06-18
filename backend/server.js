@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import pkg from 'pg';
 import midtransClient from 'midtrans-client';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
 const { Pool } = pkg;
 const app = express();
@@ -30,7 +32,7 @@ app.post('/api/register', async (req, res) => {
     
     await pool.query(
       'INSERT INTO users (name, email, phone, password, role) VALUES ($1, $2, $3, $4, $5)',
-      [name, email, phone, password, role || 'wisatawan']
+      [name, email, phone, await bcrypt.hash(password, 10), role || 'wisatawan']
     );
     res.status(201).json({ message: 'Pendaftaran sukses!' });
   } catch (error) { res.status(500).json({ message: 'Terjadi kesalahan pada server.' }); }
@@ -39,9 +41,19 @@ app.post('/api/register', async (req, res) => {
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
   try {
-    const result = await pool.query('SELECT * FROM users WHERE email = $1 AND password = $2', [email, password]);
-    if (result.rows.length > 0) res.status(200).json(result.rows[0]);
-    else res.status(401).json({ message: 'Email atau password salah!' });
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (result.rows.length > 0) {
+      const user = result.rows[0];
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (isMatch) {
+        const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, 'secret_key', { expiresIn: '1h' });
+        res.status(200).json({ token, user });
+      } else {
+        res.status(401).json({ message: 'Email atau password salah!' });
+      }
+    } else {
+      res.status(401).json({ message: 'Email atau password salah!' });
+    }
   } catch (error) { res.status(500).json({ message: 'Terjadi kesalahan pada server.' }); }
 });
 
@@ -237,6 +249,64 @@ app.put('/api/reservations/:id/confirm', async (req, res) => {
   } catch (error) {
     console.error("❌ Error saat konfirmasi:", error.message);
     res.status(500).json({ error: "Gagal mengkonfirmasi pesanan" });
+  }
+});
+
+app.post('/api/admin/register', async (req, res) => {
+  const { name, email, password } = req.body;
+  
+  try {
+    // Cek apakah email sudah dipakai
+    const adminExists = await pool.query("SELECT * FROM admins WHERE email = $1", [email]);
+    if (adminExists.rows.length > 0) {
+      return res.status(400).json({ error: "Email sudah terdaftar sebagai Admin!" });
+    }
+
+    // Acak (Hash) password menggunakan bcrypt
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Simpan data admin dengan password yang sudah diacak
+    const newAdmin = await pool.query(
+      "INSERT INTO admins (name, email, password) VALUES ($1, $2, $3) RETURNING id, name, email",
+      [name, email, hashedPassword]
+    );
+
+    res.status(201).json({ message: "Registrasi Admin berhasil!", admin: newAdmin.rows[0] });
+  } catch (error) {
+    console.error("Error Registrasi Admin:", error.message);
+    res.status(500).json({ error: "Terjadi kesalahan pada server." });
+  }
+});
+
+app.post('/api/admin/login', async (req, res) => {
+  const { email, password } = req.body;
+  
+  try {
+    const admin = await pool.query("SELECT * FROM admins WHERE email = $1", [email]);
+    if (admin.rows.length === 0) {
+      return res.status(400).json({ error: "Email tidak ditemukan!" });
+    }
+
+    const validPassword = await bcrypt.compare(password, admin.rows[0].password);
+    if (!validPassword) {
+      return res.status(400).json({ error: "Password salah!" });
+    }
+
+    const token = jwt.sign(
+      { id: admin.rows[0].id, role: 'admin' }, 
+      process.env.JWT_SECRET || 'rahasia_admin_pahawang', 
+      { expiresIn: '1d' } 
+    );
+
+    res.status(200).json({
+      message: "Login berhasil!",
+      token: token,
+      admin: { id: admin.rows[0].id, name: admin.rows[0].name, email: admin.rows[0].email }
+    });
+  } catch (error) {
+    console.error("Error Login Admin:", error.message);
+    res.status(500).json({ error: "Terjadi kesalahan pada server." });
   }
 });
 

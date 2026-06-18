@@ -14,10 +14,25 @@ export default function AdminDashboard() {
   const [financeData, setFinanceData] = useState({ balance: 0, transactions: [] });
   const [scanMessage, setScanMessage] = useState(null);
   const [dashboardStats, setDashboardStats] = useState({ revenue: 0, guestsToday: 0 });
+  const [adminName, setAdminName] = useState('Administrator'); 
   
   const [formData, setFormData] = useState({ name: '', category: 'Villa', price: '', stock: '' });
 
-  useEffect(() => { fetchAssets(); }, []);
+  useEffect(() => {
+    const token = localStorage.getItem('adminToken');
+    const dataAdminStr = localStorage.getItem('adminData'); 
+    
+    if (!token) {
+      alert("Akses ditolak! Silakan login sebagai Admin terlebih dahulu.");
+      navigate('/admin'); 
+    } else {
+      if (dataAdminStr) {
+        const adminData = JSON.parse(dataAdminStr);
+        setAdminName(adminData.name); 
+      }      
+      fetchAssets();
+    }
+  }, [navigate]);
 
   const fetchAssets = async () => {
     try {
@@ -205,8 +220,9 @@ export default function AdminDashboard() {
 
   const handleLogout = () => {
     if (window.confirm("Yakin ingin keluar dari panel pengelola?")) {
-      localStorage.removeItem('user');
-      navigate('/');
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminData');      
+      navigate('/admin');
     }
   };
 
@@ -247,14 +263,12 @@ export default function AdminDashboard() {
                 
                 <div className="h-6 w-px bg-slate-300/50 mx-2 hidden md:block"></div>
 
-                <div className="flex items-center gap-3 cursor-default">
-                  <div className="text-right hidden md:block">
-                    <p className="text-sm font-bold text-[#0A2540] drop-shadow-sm">Jihan Vendor</p>
-                    <p className="text-[10px] text-slate-600 font-bold uppercase tracking-wider">Administrator</p>
-                  </div>
-                  <div className="h-9 w-9 rounded-full bg-white/90 border border-white shadow-sm flex items-center justify-center font-black text-[#0284C7]">
-                    J
-                  </div>
+                <div className="text-right hidden md:block">
+                  <p className="text-sm font-black text-[#0F172A]">{adminName}</p>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Administrator</p>
+                </div>
+                <div className="h-10 w-10 rounded-[14px] bg-[#E0F2FE] border border-[#BAE6FD] flex items-center justify-center font-black text-lg text-[#0284C7]">
+                  {adminName.charAt(0).toUpperCase()} 
                 </div>
 
                 <button onClick={handleLogout} className="p-2 text-slate-500 hover:text-red-500 hover:bg-white/80 rounded-full transition-all" title="Keluar">

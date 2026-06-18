@@ -6,21 +6,23 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/Dashboard';
 import CheckoutPage from './pages/CheckoutPage';
+import AdminLogin from './pages/AdminLogin';
+import AdminRegister from './pages/AdminRegister';
 import AdminDashboard from './pages/AdminDashboard';
+
 
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
-
-        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin" element={<AdminLogin />} />
+        <Route path="/admin/register" element={<AdminRegister />} />
+        <Route path="/dashboard-admin" element={<AdminDashboard />} />
       </Routes>
     </Router>
   );
