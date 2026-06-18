@@ -74,7 +74,7 @@ export default function RegisterPage() {
           </div>
           <div>
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Alamat Email</label>
-            <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 font-medium text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all" placeholder="nama@email.com" />
+            <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 font-medium text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all" placeholder="nama@gmail.com" />
           </div>
           <div>
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Nomor Telepon (WhatsApp)</label>
