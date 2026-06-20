@@ -186,29 +186,93 @@ export default function CheckoutPage() {
 
   if (isSuccess) {
     const finalTicketId = ticketId || urlParams.get('ticket') || orderIdMidtrans || fallbackId;
+
+    const handlePrint = () => {
+      window.print();
+    };
+
     return (
-      <div className="min-h-screen bg-[#F4F8FB] flex items-center justify-center p-6">
-        <div className="bg-white rounded-[32px] w-full max-w-md shadow-2xl text-center border border-slate-100 overflow-hidden">
-          <div className="bg-[#0A2540] p-8 text-white">
-            <div className="w-16 h-16 bg-green-400/20 text-green-400 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">✓</div>
+      <div className="min-h-screen bg-gradient-to-br from-[#E0F2FE] to-[#F4F8FB] flex flex-col items-center justify-center p-6 font-sans print:bg-white print:p-0">
+        
+        <div id="ticket-container" className="bg-white rounded-[32px] w-full max-w-md shadow-2xl overflow-hidden border border-slate-100 relative print:shadow-none print:border-slate-300 print:max-w-full">
+          
+          <div className="bg-gradient-to-r from-[#0F172A] to-[#0284C7] p-8 text-center text-white relative print:break-inside-avoid">
+            <div className="absolute -left-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-[#E0F2FE] rounded-full print:bg-white"></div>
+            <div className="absolute -right-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-[#E0F2FE] rounded-full print:bg-white"></div>
+            
+            <div className="w-16 h-16 bg-emerald-400/20 text-emerald-400 border-2 border-emerald-400 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 shadow-lg">✓</div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-200 mb-1">Pahawang E-Ticket</p>
             <h2 className="text-2xl font-black mb-1">Pembayaran Sukses!</h2>
-            <p className="text-slate-300 text-sm font-medium">Ini adalah tiket digital kamu.</p>
           </div>
-          <div className="p-8">
-            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 inline-block mb-6">
-              <QRCodeSVG value={finalTicketId} size={180} bgColor={"#ffffff"} fgColor={"#0F172A"} level={"H"} />
+
+          <div className="p-8 bg-white flex flex-col items-center relative print:break-inside-avoid">
+            <div className="p-4 bg-white border-2 border-dashed border-slate-200 rounded-3xl shadow-sm">
+              <QRCodeSVG value={`PHW-TICKET-${finalTicketId}-${user.name}`} size={160} bgColor={"#ffffff"} fgColor={"#0F172A"} level={"H"} />
             </div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">ID Reservasi</p>
-            <p className="text-lg font-black text-[#0F172A] mb-8">{finalTicketId}</p>
-            <div className="text-left bg-slate-50 rounded-2xl p-5 mb-8 border border-slate-100">
-              <div className="flex justify-between text-xs font-bold text-slate-400 uppercase mb-3"><span>Nama</span><span className="text-[#0F172A] text-right font-bold">{user.name}</span></div>
-              <div className="flex justify-between text-xs font-bold text-slate-400 uppercase mb-3"><span>Tanggal</span><span className="text-[#0F172A] text-right font-bold">{date || "-"}</span></div>
-              <div className="flex justify-between text-xs font-bold text-slate-400 uppercase border-t border-slate-200 pt-3 mt-1"><span>Total</span><span className="text-[#0284C7] font-black">{formatRupiah(totalPrice)}</span></div>
+            <p className="text-[10px] text-slate-400 mt-4 font-bold tracking-[0.2em] uppercase">ID: {finalTicketId}</p>
+          </div>
+
+          <div className="relative h-px flex items-center justify-center bg-white print:break-inside-avoid">
+            <div className="absolute inset-x-6 border-t-2 border-dashed border-slate-200"></div>
+            <div className="absolute -left-4 w-8 h-8 bg-[#E0F2FE] rounded-full border-r border-slate-100 print:bg-white"></div>
+            <div className="absolute -right-4 w-8 h-8 bg-[#E0F2FE] rounded-full border-l border-slate-100 print:bg-white"></div>
+          </div>
+
+          <div className="p-8 bg-slate-50 print:bg-white print:break-inside-avoid">
+            <div className="grid grid-cols-2 gap-y-6 gap-x-4 mb-6">
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Nama Pemesan</p>
+                <p className="text-sm font-bold text-[#0F172A] truncate">{user.name}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Keberangkatan</p>
+                <p className="text-sm font-bold text-[#0F172A]">
+                  {date ? new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : "-"}
+                </p>
+              </div>
             </div>
-            <button onClick={handleGoHome} className="w-full py-4 rounded-full bg-[#0284C7] text-white font-bold hover:bg-[#0369A1] transition-all shadow-lg shadow-blue-500/30">Simpan & Ke Beranda</button>
-            <p className="text-[10px] text-slate-400 mt-4 font-medium uppercase tracking-widest">Tunjukkan QR Code ini kepada petugas</p>
+
+            <div className="mb-6 border-t border-slate-200 pt-5">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Item Dipesan</p>
+              {cart && cart.length > 0 ? (
+                <div className="space-y-3">
+                  {cart.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-center text-sm">
+                      <span className="font-bold text-[#0F172A] flex-1 pr-4">{item.quantity}x {item.name}</span>
+                      <span className="text-slate-500 font-medium text-right">{formatRupiah(item.price * item.quantity)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm font-bold text-[#0F172A]">Tiket & Layanan Wisata Pahawang</p>
+              )}
+            </div>
+
+            {/* Total Harga */}
+            <div className="flex justify-between items-center border-t border-slate-200 pt-5 mt-2">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Pembayaran</p>
+              <p className="text-xl font-black text-[#0284C7]">{formatRupiah(totalPrice)}</p>
+            </div>
           </div>
         </div>
+
+        <div className="mt-8 flex flex-col sm:flex-row gap-4 w-full max-w-md no-print">
+          <button onClick={handlePrint} className="flex-1 py-4 rounded-full bg-white border border-slate-200 text-[#0F172A] font-bold hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-2">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Simpan PDF
+          </button>
+          <button onClick={handleGoHome} className="flex-1 py-4 rounded-full bg-[#0284C7] text-white font-bold hover:bg-[#0369A1] transition-all shadow-lg shadow-blue-500/30">
+            Selesai & Beranda
+          </button>
+        </div>
+        
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media print {
+            body { background: white !important; margin: 0; padding: 20px; }
+            nav, footer, .no-print { display: none !important; }
+            #ticket-container { box-shadow: none !important; }
+          }
+        `}} />
       </div>
     );
   }

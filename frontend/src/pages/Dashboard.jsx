@@ -4,6 +4,8 @@ import axios from 'axios';
 import ProductCard from '../components/ProductCard';
 import { QRCodeSVG } from 'qrcode.react';
 
+import bgIkan from '../assets/background.jpg';
+
 const IconCart = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>;
 const IconTicket = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 12h20"/><path d="M6 9h.01"/><path d="M6 15h.01"/><path d="M18 9h.01"/><path d="M18 15h.01"/></svg>;
 const IconUser = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
@@ -51,25 +53,35 @@ export default function Dashboard() {
   }, [location]);
 
   useEffect(() => {
-    const sessionData = localStorage.getItem('user');
-    if (!sessionData) {
-      navigate('/login');
-    } else {
-      let parsedUser = JSON.parse(sessionData);
-      const usersDB = JSON.parse(localStorage.getItem('usersDB')) || [];
-      const fullUserData = usersDB.find(u => u.email === parsedUser.email);
-      
-      if (fullUserData) {
-        parsedUser = { ...parsedUser, ...fullUserData };
-        localStorage.setItem('user', JSON.stringify(parsedUser)); 
+    const loadDashboardData = async () => {
+      const sessionData = localStorage.getItem('user');
+      if (!sessionData) {
+        navigate('/login');
+        return;
       }
-      setUser(parsedUser);
-    }
 
-    const fetchProducts = async () => {
+      const parsedUser = JSON.parse(sessionData);
+
+      if (!parsedUser || !parsedUser.email || !parsedUser.name) {
+        localStorage.removeItem('user');
+        alert("Sesi Anda bermasalah. Silakan login kembali.");
+        navigate('/login');
+        return;
+      }
+
       try {
-        const response = await axios.get('http://localhost:5000/api/assets');
-        const formattedData = response.data.map(item => ({
+        const userRes = await axios.get(`http://localhost:5000/api/users/${parsedUser.email}`);
+        const fullUser = userRes.data.data || userRes.data;
+        setUser(fullUser);
+        localStorage.setItem('user', JSON.stringify(fullUser)); 
+      } catch (error) {
+        console.error("Gagal menarik data user:", error);
+        setUser(parsedUser); 
+      }
+
+      try {
+        const productRes = await axios.get('http://localhost:5000/api/assets');
+        const formattedData = productRes.data.map(item => ({
           ...item,
           image: item.image_url || "https://images.unsplash.com/photo-1590523277543-a94d2e4eb00b?q=80&w=800", 
           description: item.description || "Fasilitas berkualitas dan pelayanan terbaik di Pulau Pahawang."
@@ -78,25 +90,22 @@ export default function Dashboard() {
       } catch (error) {
         console.error("Gagal mengambil data produk:", error);
       }
+
+      fetchMyTickets(parsedUser.email);
     };
-    
-    fetchProducts();
-    fetchMyTickets(); 
+
+    loadDashboardData();
   }, [navigate]);
 
-  const fetchMyTickets = async () => {
+  const fetchMyTickets = async (userEmail) => {
     try {
-      const userData = localStorage.getItem('user');
-      if (!userData) return;
-      const parsedUser = JSON.parse(userData);
-
+      if (!userEmail) return;
       const response = await axios.get('http://localhost:5000/api/reservations');
       const allTickets = Array.isArray(response.data) ? response.data : (response.data.data || []);
       
       const myTickets = allTickets.filter(ticket => {
         const emailDiDatabase = ticket.customer_email ? ticket.customer_email.toLowerCase().trim() : '';
-        const emailLogin = parsedUser.email ? parsedUser.email.toLowerCase().trim() : '';
-        
+        const emailLogin = userEmail.toLowerCase().trim();
         return emailDiDatabase === emailLogin && emailDiDatabase !== '';
       });
       setUserTickets(myTickets);
@@ -107,12 +116,12 @@ export default function Dashboard() {
 
   const handleOpenTicketModal = () => {
     setIsTicketModalOpen(true);
-    fetchMyTickets();
+    fetchMyTickets(user?.email);
   };
 
   const handleOpenProfileModal = () => {
     setIsProfileModalOpen(true);
-    fetchMyTickets(); 
+    fetchMyTickets(user?.email); 
   };
 
   const handleOpenEditProfile = () => {
@@ -131,12 +140,6 @@ export default function Dashboard() {
     setUser(updatedUser);
     localStorage.setItem('user', JSON.stringify(updatedUser));
     
-    const usersDB = JSON.parse(localStorage.getItem('usersDB')) || [];
-    const updatedUsersDB = usersDB.map(u => 
-      u.email === updatedUser.email ? { ...u, ...updatedUser } : u
-    );
-    localStorage.setItem('usersDB', JSON.stringify(updatedUsersDB));
-    
     setIsEditProfileModalOpen(false);
     setIsProfileModalOpen(true);
   };
@@ -144,15 +147,17 @@ export default function Dashboard() {
   const handleLogout = () => {
     if (window.confirm("Apakah kamu yakin ingin keluar?")) {
       localStorage.removeItem('user'); 
+      
+      localStorage.removeItem('phw_cart');
+      localStorage.removeItem('phw_total');
+      localStorage.removeItem('phw_date');
+      
       navigate('/');
     }
   };
 
-  const filteredProducts = activeCategory === 'Semua' 
-    ? products 
-    : products.filter(p => p.category === activeCategory);
-
-  const categories = ['Semua', 'Villa', 'Perahu', 'Alat', 'Kuliner', ];
+  const filteredProducts = activeCategory === 'Semua' ? products : products.filter(p => p.category === activeCategory);
+  const categories = ['Semua', 'Villa', 'Perahu', 'Alat', 'Kuliner'];
 
   const confirmAddToCart = () => {
     if (selectedProduct) {
@@ -182,7 +187,14 @@ export default function Dashboard() {
   const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
   const formatRupiah = (number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
 
-  if (!user) return null;
+  if (!user || !user.name) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#F4F8FB]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-[#0284C7] mb-4"></div>
+        <p className="text-slate-500 font-bold animate-pulse">Memuat data akun...</p>
+      </div>
+    );
+  }
 
   const displayedTickets = userTickets.filter(ticket => {
     if (activeTicketTab === 'Aktif') return ticket.status !== 'Completed'; 
@@ -190,105 +202,107 @@ export default function Dashboard() {
   });
 
   return (
-    <div className="min-h-screen bg-[#F4F8FB] text-[#0F172A] font-sans pb-24 selection:bg-[#0EA5E9] selection:text-white">
-      <nav className="fixed top-0 w-full z-40 bg-[#F4F8FB]/80 backdrop-blur-xl border-b border-[#E2E8F0] shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#0284C7] rounded-[14px] flex items-center justify-center shadow-md shadow-[#0284C7]/20">
-              <span className="text-white font-bold text-xl italic">P</span>
+    <div 
+      className="min-h-screen text-[#0F172A] font-sans pb-24 selection:bg-[#0EA5E9] selection:text-white bg-cover bg-center bg-fixed relative"
+      style={{ backgroundImage: `url(${bgIkan})` }}
+    >
+      <div className="absolute inset-0 bg-white/20 backdrop-blur-[3px] z-0"></div>
+
+      <div className="relative z-10">
+        
+        <nav className="fixed top-0 w-full z-40 bg-white/70 backdrop-blur-xl border-b border-white/50 shadow-sm">
+          <div className="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-[#0284C7] rounded-[14px] flex items-center justify-center shadow-md shadow-[#0284C7]/20">
+                <span className="text-white font-bold text-xl italic">P</span>
+              </div>
+              <h1 className="text-xl font-bold tracking-tight text-[#0F172A]">Pahawang<span className="text-[#0284C7]">Sync</span></h1>
             </div>
-            <h1 className="text-xl font-bold tracking-tight text-[#0F172A]">Pahawang<span className="text-[#0284C7]">Sync</span></h1>
-          </div>
-          
-          <div className="flex items-center gap-6">
-            <button onClick={() => setIsCartOpen(true)} className="relative p-2 text-slate-500 hover:text-[#0284C7] transition-colors cursor-pointer active:scale-95">
-              <IconCart />
-              {totalItems > 0 && <span className="absolute top-0 right-0 translate-x-1/4 -translate-y-1/4 bg-[#EF4444] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-[#F4F8FB] shadow-sm animate-pulse">{totalItems}</span>}
-            </button>
-            <div className="w-px h-6 bg-slate-200"></div>
             
-            {/* Tombol Profil untuk Logout */}
-            <button 
-              onClick={handleLogout} 
-              title="Keluar / Logout"
-              className="flex items-center gap-2 group cursor-pointer hover:scale-105 active:scale-95 transition-all"
-            >
-              <div className="w-10 h-10 rounded-full bg-[#E0F2FE] group-hover:bg-red-50 group-hover:text-red-500 group-hover:ring-red-200 flex items-center justify-center text-[#0284C7] font-bold ring-2 ring-white shadow-sm transition-all">
-                {user.name.charAt(0).toUpperCase()}
-              </div>
-            </button>
-
-          </div>
-        </div>
-      </nav>
-
-      <main className="max-w-7xl mx-auto px-6 pt-32 relative z-10">
-        <header className="mb-12">
-          <h2 className="text-4xl md:text-5xl font-black tracking-tight text-[#0F172A] mb-3">Eksplorasi laut, <br/><span className="text-[#0284C7] font-serif italic font-medium">{user.name}.</span></h2>
-          <p className="text-slate-500 font-medium">Temukan keindahan tersembunyi di Pulau Pahawang hari ini.</p>
-        </header>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-16">
-          <div onClick={() => setIsPaymentModalOpen(true)} className="md:col-span-2 group bg-[#0A2540] rounded-[24px] p-8 text-white relative overflow-hidden cursor-pointer hover:shadow-xl hover:shadow-[#0A2540]/20 hover:-translate-y-1 transition-all duration-300">
-             <div className="absolute right-0 bottom-0 opacity-20 pointer-events-none group-hover:scale-110 transition-transform duration-700">
-              <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M200 200H0V100C40 100 60 140 100 140C140 140 160 100 200 100V200Z" fill="#38BDF8"/><path d="M200 200H0V150C30 150 50 180 100 180C150 180 170 150 200 150V200Z" fill="#0284C7"/></svg>
-            </div>
-            <div className="relative z-10 flex flex-col h-full justify-between min-h-[160px]">
-              <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/10 mb-4"><IconCart /></div>
-              <div>
-                <h3 className="text-2xl font-bold mb-1">Menu Pembayaran</h3>
-                <p className="text-slate-300 text-sm font-medium">Cek status tagihan dan selesaikan pesananmu.</p>
-              </div>
+            <div className="flex items-center gap-6">
+              <button onClick={() => setIsCartOpen(true)} className="relative p-2 text-slate-500 hover:text-[#0284C7] transition-colors cursor-pointer active:scale-95">
+                <IconCart />
+                {totalItems > 0 && <span className="absolute top-0 right-0 translate-x-1/4 -translate-y-1/4 bg-[#EF4444] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-white shadow-sm animate-pulse">{totalItems}</span>}
+              </button>
+              <div className="w-px h-6 bg-slate-300"></div>
+              
+              <button onClick={handleOpenProfileModal} title="Profil Akun" className="flex items-center gap-2 group cursor-pointer hover:scale-105 active:scale-95 transition-all">
+                <div className="w-10 h-10 rounded-full bg-[#E0F2FE] group-hover:bg-[#0284C7] group-hover:text-white flex items-center justify-center text-[#0284C7] font-bold ring-2 ring-white shadow-sm transition-all">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+              </button>
             </div>
           </div>
-          
-          <div onClick={handleOpenTicketModal} className="group bg-white rounded-[24px] p-8 border border-slate-100 cursor-pointer hover:border-[#38BDF8] hover:shadow-lg hover:shadow-[#38BDF8]/10 hover:-translate-y-1 transition-all duration-300">
-            <div className="flex flex-col h-full justify-between min-h-[160px]">
-              <div className="w-12 h-12 bg-[#F0F9FF] text-[#0284C7] rounded-full flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#0284C7] group-hover:text-white transition-all duration-300"><IconTicket /></div>
-              <div>
-                <h3 className="text-xl font-bold text-[#0F172A] mb-1">Tiket Digital</h3>
-                <p className="text-slate-500 text-sm font-medium">Akses QR Code pesanan.</p>
+        </nav>
+
+        <main className="max-w-7xl mx-auto px-6 pt-32">
+          <header className="mb-12">
+            <h2 className="text-4xl md:text-5xl font-black tracking-tight text-[#0F172A] mb-3">Eksplorasi laut, <br/><span className="text-[#0284C7] font-serif italic font-medium">{user.name}.</span></h2>
+            <p className="text-slate-600 font-medium">Temukan keindahan tersembunyi di Pulau Pahawang hari ini.</p>
+          </header>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-16">
+            <div onClick={() => setIsPaymentModalOpen(true)} className="md:col-span-2 group bg-[#0A2540]/90 backdrop-blur-md rounded-[24px] p-8 text-white relative overflow-hidden cursor-pointer border border-white/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+              <div className="absolute right-0 bottom-0 opacity-20 pointer-events-none group-hover:scale-110 transition-transform duration-700">
+                <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M200 200H0V100C40 100 60 140 100 140C140 140 160 100 200 100V200Z" fill="#38BDF8"/><path d="M200 200H0V150C30 150 50 180 100 180C150 180 170 150 200 150V200Z" fill="#0284C7"/></svg>
+              </div>
+              <div className="relative z-10 flex flex-col h-full justify-between min-h-[160px]">
+                <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/10 mb-4"><IconCart /></div>
+                <div>
+                  <h3 className="text-2xl font-bold mb-1">Menu Pembayaran</h3>
+                  <p className="text-slate-300 text-sm font-medium">Cek status tagihan dan selesaikan pesananmu.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div onClick={handleOpenTicketModal} className="group bg-white/80 backdrop-blur-md rounded-[24px] p-8 border border-white cursor-pointer hover:border-[#38BDF8] hover:bg-white hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
+              <div className="flex flex-col h-full justify-between min-h-[160px]">
+                <div className="w-12 h-12 bg-[#F0F9FF] text-[#0284C7] rounded-full flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#0284C7] group-hover:text-white transition-all duration-300"><IconTicket /></div>
+                <div>
+                  <h3 className="text-xl font-bold text-[#0F172A] mb-1">Tiket Digital</h3>
+                  <p className="text-slate-500 text-sm font-medium">Akses QR Code pesanan.</p>
+                </div>
+              </div>
+            </div>
+
+            <div onClick={handleOpenProfileModal} className="group bg-white/80 backdrop-blur-md rounded-[24px] p-8 border border-white cursor-pointer hover:border-[#38BDF8] hover:bg-white hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
+               <div className="flex flex-col h-full justify-between min-h-[160px]">
+                <div className="w-12 h-12 bg-[#F0F9FF] text-[#0284C7] rounded-full flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#0284C7] group-hover:text-white transition-all duration-300"><IconUser /></div>
+                <div>
+                  <h3 className="text-xl font-bold text-[#0F172A] mb-1">Profil Akun</h3>
+                  <p className="text-slate-500 text-sm font-medium">Pengaturan & Tagihan.</p>
+                </div>
               </div>
             </div>
           </div>
 
-          <div onClick={handleOpenProfileModal} className="group bg-white rounded-[24px] p-8 border border-slate-100 cursor-pointer hover:border-[#38BDF8] hover:shadow-lg hover:shadow-[#38BDF8]/10 hover:-translate-y-1 transition-all duration-300">
-             <div className="flex flex-col h-full justify-between min-h-[160px]">
-              <div className="w-12 h-12 bg-[#F0F9FF] text-[#0284C7] rounded-full flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#0284C7] group-hover:text-white transition-all duration-300"><IconUser /></div>
-              <div>
-                <h3 className="text-xl font-bold text-[#0F172A] mb-1">Profil Akun</h3>
-                <p className="text-slate-500 text-sm font-medium">Pengaturan & Tagihan.</p>
+          <section>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 bg-white/70 backdrop-blur-md p-4 rounded-[20px] border border-white shadow-sm">
+              <div className="hidden md:block pl-2"><span className="font-bold text-[#0F172A]">Filter Kategori</span></div>
+              <div className="flex gap-2 overflow-x-auto hide-scrollbar w-full md:w-auto">
+                {categories.map((cat) => (
+                  <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-6 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 whitespace-nowrap ${activeCategory === cat ? 'bg-[#0284C7] text-white shadow-md' : 'bg-transparent text-slate-600 hover:bg-white'}`}>{cat}</button>
+                ))}
               </div>
             </div>
-          </div>
-        </div>
-
-        <section>
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 bg-white p-4 rounded-[20px] border border-slate-100 shadow-sm">
-            <div className="hidden md:block pl-2"><span className="font-bold text-[#0F172A]">Filter Kategori</span></div>
-            <div className="flex gap-2 overflow-x-auto hide-scrollbar w-full md:w-auto">
-              {categories.map((cat) => (
-                <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-6 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 whitespace-nowrap ${activeCategory === cat ? 'bg-[#0284C7] text-white shadow-md shadow-[#0284C7]/20' : 'bg-transparent text-slate-500 hover:bg-[#F0F9FF] hover:text-[#0284C7]'}`}>{cat}</button>
-              ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredProducts.length > 0 ? (
+                filteredProducts.map(item => <ProductCard key={item.id} title={item.name} category={item.category} price={item.price} image={item.image} onAddToCart={() => setSelectedProduct(item)} />)
+              ) : (
+                <div className="col-span-full py-24 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm rounded-[24px] border border-white shadow-sm">
+                  <div className="w-16 h-16 bg-[#F0F9FF] text-[#0284C7] rounded-full flex items-center justify-center text-2xl mb-4">🏝️</div>
+                  <h3 className="text-lg font-bold text-[#0F172A]">Data belum tersedia</h3>
+                  <p className="text-slate-500 font-medium mt-1">Kategori ini masih kosong, coba pilih yang lain.</p>
+                </div>
+              )}
             </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProducts.length > 0 ? (
-              filteredProducts.map(item => <ProductCard key={item.id} title={item.name} category={item.category} price={item.price} image={item.image} onAddToCart={() => setSelectedProduct(item)} />)
-            ) : (
-              <div className="col-span-full py-24 flex flex-col items-center justify-center bg-white rounded-[24px] border border-slate-100">
-                <div className="w-16 h-16 bg-[#F0F9FF] text-[#0284C7] rounded-full flex items-center justify-center text-2xl mb-4">🏝️</div>
-                <h3 className="text-lg font-bold text-[#0F172A]">Data belum tersedia</h3>
-                <p className="text-slate-500 font-medium mt-1">Kategori ini masih kosong, coba pilih yang lain.</p>
-              </div>
-            )}
-          </div>
-        </section>
-      </main>
+          </section>
+        </main>
+      </div>
 
       {isEditProfileModalOpen && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-[#0F172A]/60 backdrop-blur-sm p-4">
-          <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl p-8 relative transform transition-all animate-[bounce_0.3s_ease-out]">
+          <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl p-8 relative transform transition-all">
             <button onClick={() => { setIsEditProfileModalOpen(false); setIsProfileModalOpen(true); }} className="absolute top-6 right-6 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full font-bold text-slate-500 hover:bg-slate-200 transition-colors">✕</button>
             <div className="flex items-center gap-3 mb-8 border-b border-slate-100 pb-4">
               <div className="w-10 h-10 bg-[#E0F2FE] text-[#0284C7] rounded-full flex items-center justify-center font-bold">✎</div>
@@ -297,15 +311,15 @@ export default function Dashboard() {
             <form onSubmit={handleSaveProfile} className="space-y-4">
               <div>
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Nama Lengkap</label>
-                <input type="text" required value={profileFormData.name} onChange={(e) => setProfileFormData({...profileFormData, name: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-bold text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all" />
+                <input type="text" required value={profileFormData.name} onChange={(e) => setProfileFormData({...profileFormData, name: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-bold text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7]" />
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Alamat Email</label>
-                <input type="email" required value={profileFormData.email} onChange={(e) => setProfileFormData({...profileFormData, email: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-bold text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all" />
+                <input type="email" required value={profileFormData.email} onChange={(e) => setProfileFormData({...profileFormData, email: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-bold text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7]" />
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Nomor Telepon (WhatsApp)</label>
-                <input type="tel" placeholder="Contoh: 081234567890" value={profileFormData.phone} onChange={(e) => setProfileFormData({...profileFormData, phone: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-bold text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7] transition-all" />
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Nomor Telepon</label>
+                <input type="tel" placeholder="Contoh: 081234567890" value={profileFormData.phone} onChange={(e) => setProfileFormData({...profileFormData, phone: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-bold text-[#0F172A] focus:outline-none focus:border-[#0284C7] focus:ring-1 focus:ring-[#0284C7]" />
               </div>
               <div className="pt-4 mt-4">
                 <button type="submit" className="w-full py-4 rounded-full bg-[#0284C7] text-white font-bold hover:bg-[#0369A1] transition-all shadow-lg shadow-blue-500/30">Simpan Perubahan</button>
@@ -316,29 +330,71 @@ export default function Dashboard() {
       )}
 
       {isProfileModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A]/60 backdrop-blur-sm p-4">
-          <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl p-8 relative transform transition-all animate-[bounce_0.3s_ease-out]">
-            <button onClick={() => setIsProfileModalOpen(false)} className="absolute top-6 right-6 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full font-bold text-slate-500 hover:bg-slate-200 transition-colors">✕</button>
-            <div className="text-center mb-8 mt-2">
-              <div className="w-24 h-24 bg-[#E0F2FE] text-[#0284C7] rounded-full flex items-center justify-center text-4xl font-black mx-auto mb-4 border-4 border-white shadow-lg">{user.name.charAt(0).toUpperCase()}</div>
-              <h3 className="text-2xl font-black text-[#0F172A] leading-tight">{user.name}</h3>
-              <p className="text-slate-500 text-sm font-medium mt-1">{user.email || 'wisatawan@pahawang.com'}</p>
-              {user.phone && <p className="text-slate-400 text-xs font-bold mt-1">📞 {user.phone}</p>}
-              <span className="inline-block mt-3 px-3 py-1 bg-blue-50 border border-blue-100 text-[#0284C7] text-[10px] font-bold rounded-full uppercase tracking-widest">Pelanggan</span>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A]/70 backdrop-blur-md p-4 transition-all">
+          <div className="bg-white w-full max-w-md rounded-[40px] shadow-[0_20px_50px_rgba(0,0,0,0.2)] overflow-hidden relative animate-[bounce_0.3s_ease-out]">
+            
+            <div className="h-32 bg-gradient-to-r from-[#0F172A] to-[#0284C7] relative">
+              <svg className="absolute bottom-0 w-full" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320">
+                <path fill="#ffffff" fillOpacity="1" d="M0,192L48,197.3C96,203,192,208,288,192C384,176,480,139,576,144C672,149,768,197,864,197.3C960,197,1056,149,1152,138.7C1248,128,1344,155,1392,165.3L1440,176L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
+              </svg>
+              <button onClick={() => setIsProfileModalOpen(false)} className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center bg-white/20 hover:bg-white/40 backdrop-blur-md text-white rounded-full transition-all z-10">✕</button>
             </div>
-            <div className="bg-slate-50 rounded-2xl p-5 mb-8 border border-slate-100 grid grid-cols-2 gap-4">
-               <div className="text-center border-r border-slate-200">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Tiket</p>
-                  <p className="text-2xl font-black text-[#0F172A]">{userTickets.length}</p>
-               </div>
-               <div className="text-center">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Belanja</p>
-                  <p className="text-lg mt-1 font-black text-[#0284C7]">{formatRupiah(userTickets.reduce((sum, t) => sum + Number(t.total_price), 0))}</p>
-               </div>
-            </div>
-            <div className="space-y-3">
-               <button onClick={handleOpenEditProfile} className="w-full py-4 rounded-2xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition-all flex items-center justify-between px-6">Edit Profil <span>➔</span></button>
-               <button onClick={handleLogout} className="w-full py-4 rounded-2xl bg-red-50 text-red-500 font-bold hover:bg-red-100 transition-all flex items-center justify-between px-6">Keluar Akun <span>➔</span></button>
+
+            <div className="px-8 pb-8 -mt-16 relative text-center">
+              <div className="w-28 h-28 bg-white p-2 rounded-[35px] shadow-xl mx-auto mb-4 relative">
+                <div className="w-full h-full bg-gradient-to-br from-[#E0F2FE] to-[#BAE6FD] text-[#0284C7] rounded-[28px] flex items-center justify-center text-4xl font-black border border-blue-100">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-emerald-500 border-4 border-white rounded-full flex items-center justify-center shadow-lg" title="Akun Aktif">
+                  <span className="text-[10px] text-white">✓</span>
+                </div>
+              </div>
+
+              <h3 className="text-2xl font-black text-[#0F172A] leading-tight mb-1">{user.name}</h3>
+              <p className="text-slate-500 text-sm font-medium mb-1">{user.email}</p>
+              <div className="flex items-center justify-center gap-2 text-[#0284C7] bg-blue-50 w-fit mx-auto px-4 py-1.5 rounded-full border border-blue-100 mb-8">
+                <span className="text-xs font-black uppercase tracking-widest">Pelanggan Setia</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-8">
+                <div className="bg-[#F8FAFC] p-5 rounded-3xl border border-slate-100 group hover:border-blue-200 transition-all">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 group-hover:text-blue-400 transition-colors">Tiket Saya</p>
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-2xl font-black text-[#0F172A]">{userTickets.length}</span>
+                    <span className="text-lg">🎟️</span>
+                  </div>
+                </div>
+                <div className="bg-[#F8FAFC] p-5 rounded-3xl border border-slate-100 group hover:border-blue-200 transition-all">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 group-hover:text-blue-400 transition-colors">Total Belanja</p>
+                  <p className="text-sm font-black text-[#0284C7] truncate">{formatRupiah(userTickets.reduce((sum, t) => sum + Number(t.total_price), 0))}</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <button 
+                  onClick={handleOpenEditProfile} 
+                  className="w-full py-4 rounded-2xl bg-white border-2 border-slate-100 text-[#0F172A] font-bold hover:border-[#0284C7] hover:text-[#0284C7] hover:bg-blue-50/50 transition-all flex items-center justify-between px-6 group"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg">⚙️</span>
+                    <span>Pengaturan Profil</span>
+                  </div>
+                  <span className="opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all">➔</span>
+                </button>
+
+                <button 
+                  onClick={handleLogout} 
+                  className="w-full py-4 rounded-2xl bg-[#FFF1F2] border-2 border-transparent text-[#E11D48] font-bold hover:bg-[#FFE4E6] hover:border-[#FB7185]/30 transition-all flex items-center justify-between px-6 group"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg">🚪</span>
+                    <span>Keluar Akun</span>
+                  </div>
+                  <span className="opacity-50 group-hover:translate-x-1 transition-all">➔</span>
+                </button>
+              </div>
+
+              <p className="text-[10px] text-slate-400 mt-8 font-bold uppercase tracking-[0.2em]">PahawangSync • v1.2</p>
             </div>
           </div>
         </div>
@@ -346,17 +402,17 @@ export default function Dashboard() {
 
       {isPaymentModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A]/60 backdrop-blur-sm p-4">
-          <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl p-8 relative transform transition-all animate-[bounce_0.3s_ease-out]">
+          <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl p-8 relative transform transition-all">
             <button onClick={() => setIsPaymentModalOpen(false)} className="absolute top-6 right-6 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full font-bold text-slate-500 hover:bg-slate-200">✕</button>
             <h3 className="text-2xl font-black text-[#0F172A] mb-6">Status Pembayaran</h3>
             {cart.length > 0 ? (
               <div>
                 <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl mb-6">
                   <div className="flex items-center gap-3 mb-2"><span className="text-amber-500 text-xl">⏳</span><h4 className="font-bold text-amber-600">Menunggu Pembayaran</h4></div>
-                  <p className="text-sm text-amber-700/80 font-medium">Kamu memiliki pesanan wisata yang belum diselesaikan. Yuk, bayar sekarang agar e-tiket bisa diterbitkan!</p>
+                  <p className="text-sm text-amber-700/80 font-medium">Selesaikan pesananmu agar e-tiket diterbitkan!</p>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-6">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Ringkasan Tagihan</h4>
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Ringkasan</h4>
                   <div className="space-y-3 mb-4">
                     {cart.map((item, idx) => (
                       <div key={idx} className="flex justify-between text-sm"><span className="text-slate-500 font-medium">{item.quantity}x {item.name}</span><span className="font-bold text-[#0F172A]">{formatRupiah(item.price * item.quantity)}</span></div>
@@ -364,15 +420,14 @@ export default function Dashboard() {
                   </div>
                   <div className="border-t border-slate-200 pt-3 flex justify-between items-center"><span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Tagihan</span><span className="text-xl font-black text-[#0284C7]">{formatRupiah(totalPrice)}</span></div>
                 </div>
-                <button onClick={() => { setIsPaymentModalOpen(false); navigate('/checkout', { state: { cart, totalPrice, autoPay: true } }); }} className="w-full py-4 rounded-full bg-[#0F172A] text-white font-bold hover:bg-[#1E293B] shadow-lg shadow-slate-900/20 transition-all flex items-center justify-center gap-2">Lanjutkan Pembayaran <span>➔</span></button>
-                <button onClick={() => { setCart([]); setIsPaymentModalOpen(false); }} className="w-full text-center mt-4 text-xs font-bold text-red-400 hover:text-red-500 transition-colors uppercase tracking-widest">Batalkan Pesanan</button>
+                <button onClick={() => { setIsPaymentModalOpen(false); navigate('/checkout', { state: { cart, totalPrice, autoPay: true } }); }} className="w-full py-4 rounded-full bg-[#0F172A] text-white font-bold hover:bg-[#1E293B] shadow-lg shadow-slate-900/20 transition-all">Lanjutkan Pembayaran ➔</button>
+                <button onClick={() => { setCart([]); setIsPaymentModalOpen(false); }} className="w-full text-center mt-4 text-xs font-bold text-red-400 hover:text-red-500 uppercase tracking-widest">Batalkan Pesanan</button>
               </div>
             ) : (
               <div className="text-center py-8">
                 <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-4">✓</div>
                 <h4 className="text-lg font-bold text-[#0F172A] mb-2">Semua Lunas!</h4>
-                <p className="text-sm text-slate-500 mb-8">Tidak ada tagihan yang tertunda. Pembayaranmu sudah lunas atau kamu belum membuat pesanan baru.</p>
-                <button onClick={() => { setIsPaymentModalOpen(false); handleOpenTicketModal(); }} className="w-full py-4 rounded-full bg-[#0284C7] text-white font-bold hover:bg-[#0369A1] transition-all shadow-lg shadow-blue-500/30">Lihat Tiket Digital</button>
+                <button onClick={() => { setIsPaymentModalOpen(false); handleOpenTicketModal(); }} className="w-full mt-4 py-4 rounded-full bg-[#0284C7] text-white font-bold hover:bg-[#0369A1] shadow-lg">Lihat Tiket Digital</button>
               </div>
             )}
           </div>
@@ -380,64 +435,103 @@ export default function Dashboard() {
       )}
 
       {isTicketModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A]/60 backdrop-blur-sm p-4">
-          <div className="bg-white w-full max-w-4xl rounded-[32px] shadow-2xl flex flex-col md:flex-row overflow-hidden max-h-[90vh]">
-            <div className="w-full md:w-1/2 bg-slate-50 p-8 border-r border-slate-100 flex flex-col overflow-y-auto">
-              <div className="flex justify-between items-center mb-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A]/70 backdrop-blur-md p-4 transition-all">
+          <div className="bg-white w-full max-w-4xl rounded-[32px] shadow-2xl flex flex-col md:flex-row overflow-hidden max-h-[90vh] animate-[bounce_0.3s_ease-out]">
+            
+            <div className="w-full md:w-5/12 bg-slate-50 p-6 md:p-8 border-r border-slate-100 flex flex-col overflow-y-auto">
+              <div className="flex justify-between items-center mb-6">
                 <h3 className="text-2xl font-black text-[#0F172A]">Riwayat Tiket</h3>
                 <button onClick={() => { setIsTicketModalOpen(false); setSelectedTicket(null); setActiveTicketTab('Aktif'); }} className="md:hidden w-8 h-8 flex items-center justify-center bg-slate-200 rounded-full font-bold text-slate-500">✕</button>
               </div>
-              <div className="flex bg-slate-200/60 p-1.5 rounded-xl mb-6">
-                <button onClick={() => { setActiveTicketTab('Aktif'); setSelectedTicket(null); }} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTicketTab === 'Aktif' ? 'bg-white text-[#0284C7] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Belum Digunakan</button>
-                <button onClick={() => { setActiveTicketTab('Selesai'); setSelectedTicket(null); }} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTicketTab === 'Selesai' ? 'bg-white text-[#0284C7] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Selesai</button>
+              
+              <div className="flex bg-slate-200/60 p-1.5 rounded-xl mb-6 shadow-inner">
+                <button onClick={() => { setActiveTicketTab('Aktif'); setSelectedTicket(null); }} className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all duration-300 ${activeTicketTab === 'Aktif' ? 'bg-white text-[#0284C7] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Masih Aktif</button>
+                <button onClick={() => { setActiveTicketTab('Selesai'); setSelectedTicket(null); }} className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all duration-300 ${activeTicketTab === 'Selesai' ? 'bg-white text-[#0284C7] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Selesai</button>
               </div>
+
               {displayedTickets.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-center opacity-50 py-10">
-                  <span className="text-5xl mb-3">{activeTicketTab === 'Aktif' ? '🎟️' : '✅'}</span>
-                  <p className="font-bold">Tidak ada tiket</p>
-                  <p className="text-sm">{activeTicketTab === 'Aktif' ? 'Kamu belum memiliki pesanan aktif.' : 'Belum ada tiket yang selesai digunakan.'}</p>
+                  <span className="text-6xl mb-4">{activeTicketTab === 'Aktif' ? '🎟️' : '✅'}</span>
+                  <p className="font-bold text-lg text-[#0F172A]">Tidak ada tiket</p>
+                  <p className="text-sm mt-1">{activeTicketTab === 'Aktif' ? 'Kamu belum memiliki pesanan wisata.' : 'Belum ada tiket yang selesai digunakan.'}</p>
                 </div>
               ) : (
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-4">
                   {displayedTickets.map((ticket, index) => (
-                    <div key={ticket.id || index} onClick={() => setSelectedTicket(ticket)} className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${selectedTicket?.id === ticket.id ? 'border-[#0284C7] bg-white shadow-md' : 'border-transparent bg-white hover:border-slate-200'}`}>
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="text-[10px] font-bold bg-[#E0F2FE] text-[#0284C7] px-2 py-1 rounded-md uppercase tracking-wider">{ticket.asset_category || 'Wisata'}</span>
-                        <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase ${ticket.status === 'Completed' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>{ticket.status || 'Pending'}</span>
+                    <div key={ticket.id || index} onClick={() => setSelectedTicket(ticket)} className={`p-5 rounded-2xl border-2 cursor-pointer transition-all duration-300 ${selectedTicket?.id === ticket.id ? 'border-[#0284C7] bg-[#F0F9FF] shadow-md scale-[1.02]' : 'border-transparent bg-white hover:border-slate-200 hover:shadow-sm'}`}>
+                      <div className="flex justify-between items-start mb-3">
+                        <span className="text-[10px] font-bold bg-white text-[#0284C7] px-2.5 py-1 rounded-md border border-[#0284C7]/20 uppercase tracking-wider">{ticket.asset_category || 'Wisata'}</span>
+                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider ${ticket.status === 'Completed' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>{ticket.status === 'Completed' ? 'Selesai' : 'Aktif'}</span>
                       </div>
-                      <h4 className="font-bold text-[#0F172A] leading-tight mb-1">{ticket.asset_name || `Pesanan #${ticket.id}`}</h4>
-                      <p className="text-xs text-slate-500 font-medium">Berangkat: {new Date(ticket.booking_date).toLocaleDateString('id-ID')}</p>
+                      <h4 className="font-bold text-[#0F172A] text-lg mb-1 leading-tight">{ticket.asset_name}</h4>
+                      <p className="text-xs text-slate-500 font-medium flex items-center gap-1">📅 {new Date(ticket.booking_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-            <div className="w-full md:w-1/2 p-8 flex flex-col items-center justify-center relative bg-white">
-              <button onClick={() => { setIsTicketModalOpen(false); setSelectedTicket(null); setActiveTicketTab('Aktif'); }} className="hidden md:flex absolute top-6 right-6 w-10 h-10 items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-full font-bold transition-colors">✕</button>
+
+            <div className="w-full md:w-7/12 p-6 md:p-10 flex flex-col items-center justify-center relative bg-gradient-to-br from-slate-50 to-[#E0F2FE]/40">
+              <button onClick={() => { setIsTicketModalOpen(false); setSelectedTicket(null); setActiveTicketTab('Aktif'); }} className="hidden md:flex absolute top-6 right-6 w-10 h-10 items-center justify-center bg-white border border-slate-200 hover:bg-slate-100 text-slate-500 rounded-full font-bold transition-all shadow-sm z-10">✕</button>
+              
               {selectedTicket ? (
-                <div className="w-full max-w-sm text-center">
-                  <h4 className="text-lg font-black text-[#0F172A] mb-2">{selectedTicket.asset_name || 'Tiket Wisata Pahawang'}</h4>
-                  <p className="text-sm text-slate-500 font-medium mb-8">{selectedTicket.status === 'Completed' ? 'Tiket ini sudah di-scan dan berhasil digunakan.' : 'Scan QR Code ini pada petugas kami di lokasi keberangkatan.'}</p>
-                  <div className={`inline-block p-6 bg-white border-2 border-dashed rounded-3xl mb-6 relative ${selectedTicket.status === 'Completed' ? 'border-green-200 opacity-60' : 'border-slate-200'}`}>
-                    {selectedTicket.status === 'Completed' && (
-                       <div className="absolute inset-0 flex items-center justify-center z-10 bg-white/50 rounded-3xl backdrop-blur-[1px]">
-                          <div className="bg-green-500 text-white text-sm font-black px-4 py-2 rounded-full rotate-[-15deg] shadow-lg border-2 border-white">TERPAKAI</div>
-                       </div>
-                    )}
-                    <QRCodeSVG value={`PHW-TICKET-${selectedTicket.id}-${selectedTicket.customer_name}`} size={200} bgColor={"#ffffff"} fgColor={"#0F172A"} level={"H"} />
-                  </div>
-                  <div className="bg-slate-50 p-4 rounded-2xl text-left border border-slate-100 w-full mb-6">
-                    <div className="flex justify-between text-xs font-bold text-slate-400 mb-2"><span>NAMA PEMESAN</span><span className="text-[#0F172A]">{selectedTicket.customer_name}</span></div>
-                    <div className="flex justify-between text-xs font-bold text-slate-400 mb-2"><span>TANGGAL</span><span className="text-[#0F172A]">{new Date(selectedTicket.booking_date).toLocaleDateString('id-ID')}</span></div>
-                    <div className="flex justify-between text-xs font-bold text-slate-400 mb-2"><span>JUMLAH PAX</span><span className="text-[#0F172A]">{selectedTicket.quantity || 1}x</span></div>
-                    <div className="flex justify-between text-xs font-bold text-slate-400 border-t border-slate-200 pt-2 mt-2"><span>TOTAL BAYAR</span><span className="text-[#0284C7] font-black">{formatRupiah(selectedTicket.total_price)}</span></div>
+                <div className="w-full max-w-sm relative group">
+                  <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100 transition-transform duration-500 hover:-translate-y-2">
+                    
+                    <div className="bg-gradient-to-r from-[#0F172A] to-[#0284C7] p-6 text-center text-white relative">
+                      <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-[#F8FAFC] rounded-full"></div>
+                      <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-[#F8FAFC] rounded-full"></div>
+                      
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-200 mb-2">Pahawang E-Ticket</p>
+                      <h4 className="text-2xl font-black truncate">{selectedTicket.asset_name}</h4>
+                    </div>
+
+                    <div className="p-8 bg-white flex flex-col items-center relative">
+                      {selectedTicket.status === 'Completed' && (
+                        <div className="absolute inset-0 flex items-center justify-center z-10 bg-white/60 backdrop-blur-[2px]">
+                           <div className="bg-emerald-500 text-white text-sm font-black px-6 py-3 rounded-full rotate-[-15deg] shadow-xl border-4 border-white tracking-widest">TELAH DIGUNAKAN</div>
+                        </div>
+                      )}
+                      <div className="p-4 bg-white border-2 border-dashed border-slate-200 rounded-3xl group-hover:border-[#0284C7] transition-colors duration-300 shadow-sm">
+                        <QRCodeSVG value={`PHW-TICKET-${selectedTicket.id}-${selectedTicket.customer_name}`} size={180} bgColor={"#ffffff"} fgColor={"#0F172A"} level={"H"} />
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-4 font-bold tracking-[0.2em] uppercase">ID: PHW-{selectedTicket.id}</p>
+                    </div>
+
+                    <div className="relative h-px flex items-center justify-center bg-white">
+                      <div className="absolute inset-x-6 border-t-2 border-dashed border-slate-200"></div>
+                      <div className="absolute -left-3 w-6 h-6 bg-[#F8FAFC] rounded-full border-r border-slate-100"></div>
+                      <div className="absolute -right-3 w-6 h-6 bg-[#F8FAFC] rounded-full border-l border-slate-100"></div>
+                    </div>
+
+                    <div className="p-6 bg-slate-50">
+                      <div className="grid grid-cols-2 gap-y-5 gap-x-4">
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Nama Pemesan</p>
+                          <p className="text-sm font-bold text-[#0F172A] truncate">{selectedTicket.customer_name}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Keberangkatan</p>
+                          <p className="text-sm font-bold text-[#0F172A]">{new Date(selectedTicket.booking_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Pax / Unit</p>
+                          <p className="text-sm font-bold text-[#0284C7] bg-blue-50 px-2 py-0.5 rounded border border-blue-100 inline-block">{selectedTicket.quantity || 1} Pax</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Dibayar</p>
+                          <p className="text-sm font-black text-[#0F172A]">{formatRupiah(selectedTicket.total_price)}</p>
+                        </div>
+                      </div>
+                    </div>
+                    
                   </div>
                 </div>
               ) : (
-                <div className="text-center opacity-40">
-                  <IconTicket />
-                  <p className="mt-4 font-bold text-lg text-[#0F172A]">Pilih tiket di samping</p>
-                  <p className="text-sm text-slate-500">Pilih salah satu tiket untuk melihat QR Code.</p>
+                <div className="text-center opacity-40 flex flex-col items-center">
+                  <div className="w-20 h-20 bg-slate-200 rounded-full flex items-center justify-center mb-4"><IconTicket /></div>
+                  <p className="font-bold text-xl text-[#0F172A]">Pilih tiket di samping</p>
+                  <p className="text-sm text-slate-500 mt-2 max-w-[200px]">Klik salah satu riwayat pesanan untuk melihat detail E-Ticket dan QR Code.</p>
                 </div>
               )}
             </div>
@@ -446,76 +540,50 @@ export default function Dashboard() {
       )}
 
       {selectedProduct && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 bg-[#0F172A]/40 backdrop-blur-sm transition-all">
-          <div className="bg-white rounded-[32px] w-full max-w-md p-6 shadow-2xl relative animate-[bounce_0.3s_ease-out]">
-            <button onClick={() => setSelectedProduct(null)} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-slate-100 text-slate-500 rounded-full hover:bg-slate-200 transition-colors">✕</button>
-            <div className="w-full h-48 rounded-[20px] overflow-hidden mb-6 mt-2">
-              <img src={selectedProduct.image} alt={selectedProduct.name} className="w-full h-full object-cover" />
-            </div>
-            <span className="text-[10px] font-bold text-[#0284C7] uppercase tracking-widest bg-[#E0F2FE] px-3 py-1 rounded-full mb-3 inline-block">{selectedProduct.category}</span>
-            <h3 className="text-2xl font-bold text-[#0F172A] mb-2 leading-tight">{selectedProduct.name}</h3>
-            <p className="text-slate-500 text-sm mb-6 leading-relaxed">{selectedProduct.description}</p>
-            <div className="flex items-center justify-between mb-8 bg-[#F8FAFC] p-4 rounded-2xl border border-slate-100">
-              <span className="text-slate-400 text-sm font-bold uppercase tracking-wider">Harga</span>
-              <span className="text-2xl font-black text-[#0284C7]">{formatRupiah(selectedProduct.price)}</span>
-            </div>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 bg-[#0F172A]/40 backdrop-blur-sm">
+          <div className="bg-white rounded-[32px] w-full max-w-md p-6 shadow-2xl relative">
+            <button onClick={() => setSelectedProduct(null)} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full">✕</button>
+            <div className="w-full h-48 rounded-[20px] overflow-hidden mb-6 mt-2"><img src={selectedProduct.image} className="w-full h-full object-cover" /></div>
+            <h3 className="text-2xl font-bold text-[#0F172A] mb-2">{selectedProduct.name}</h3>
+            <p className="text-slate-500 text-sm mb-6">{selectedProduct.description}</p>
             <div className="flex gap-3">
-              <button onClick={() => setSelectedProduct(null)} className="w-1/3 py-4 rounded-full border-2 border-slate-100 text-slate-500 font-bold hover:bg-slate-50 transition-all">Batal</button>
-              <button onClick={confirmAddToCart} className="w-2/3 py-4 rounded-full bg-[#0284C7] text-white font-bold shadow-lg shadow-[#0284C7]/30 hover:bg-[#0369A1] hover:shadow-xl transition-all">Ya, Pesan!</button>
+              <button onClick={() => setSelectedProduct(null)} className="w-1/3 py-4 rounded-full border-2 border-slate-100 font-bold">Batal</button>
+              <button onClick={confirmAddToCart} className="w-2/3 py-4 rounded-full bg-[#0284C7] text-white font-bold">Ya, Pesan!</button>
             </div>
           </div>
         </div>
       )}
 
-      {isCartOpen && <div className="fixed inset-0 bg-[#0F172A]/30 backdrop-blur-sm z-[70] transition-opacity" onClick={() => setIsCartOpen(false)}></div>}
-      <div className={`fixed top-0 right-0 h-full w-full md:w-[450px] bg-white z-[80] shadow-2xl transform transition-transform duration-500 ease-in-out flex flex-col ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#E0F2FE] text-[#0284C7] rounded-full flex items-center justify-center"><IconCart /></div>
-            <h3 className="text-xl font-bold text-[#0F172A]">Keranjang Saya</h3>
-          </div>
-          <button onClick={() => setIsCartOpen(false)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-full transition-all">✕</button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-6 bg-[#F8FAFC]">
-          {cart.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center opacity-60">
-              <span className="text-6xl mb-4">📭</span>
-              <p className="font-bold text-[#0F172A] text-lg">Keranjangnya masih kosong</p>
-              <p className="text-slate-500 text-sm">Ayo mulai eksplorasi liburanmu!</p>
+      {isCartOpen && (
+        <>
+          <div className="fixed inset-0 bg-[#0F172A]/30 backdrop-blur-sm z-[70]" onClick={() => setIsCartOpen(false)}></div>
+          <div className="fixed top-0 right-0 h-full w-full md:w-[450px] bg-white z-[80] shadow-2xl flex flex-col">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-xl font-bold">Keranjang Saya</h3>
+              <button onClick={() => setIsCartOpen(false)} className="w-10 h-10 flex items-center justify-center text-slate-400 bg-slate-100 rounded-full">✕</button>
             </div>
-          ) : (
-            <div className="flex flex-col gap-4">
-              <div className="bg-[#E0F2FE] border border-[#BAE6FD] p-4 rounded-2xl flex gap-3 items-start">
-                <span className="text-lg">💡</span>
-                <div>
-                  <h4 className="text-[#0369A1] font-bold text-sm mb-1">Cek Kembali Pesananmu</h4>
-                  <p className="text-[#0284C7] text-xs font-medium leading-relaxed">Pastikan jumlah barang sudah pas ya. Untuk jadwal keberangkatan dan data peserta, nanti bisa kamu atur di halaman pembayaran.</p>
-                </div>
-              </div>
+            <div className="flex-1 overflow-y-auto p-6 bg-[#F8FAFC]">
               {cart.map((item) => (
-                <div key={item.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex gap-4">
-                  <div className="w-20 h-20 rounded-xl overflow-hidden shrink-0"><img src={item.image} alt={item.name} className="w-full h-full object-cover" /></div>
+                <div key={item.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex gap-4 mb-4">
+                  <div className="w-20 h-20 rounded-xl overflow-hidden shrink-0"><img src={item.image} className="w-full h-full object-cover" /></div>
                   <div className="flex-1 flex flex-col justify-between py-1">
-                    <div><h4 className="font-bold text-[#0F172A] text-sm leading-tight line-clamp-2">{item.name}</h4><p className="text-[#0284C7] font-black text-sm mt-1">{formatRupiah(item.price)}</p></div>
-                    <div className="flex items-center gap-3 mt-3">
-                      <div className="flex items-center bg-slate-50 border border-slate-100 rounded-full overflow-hidden">
-                        <button onClick={() => updateQuantity(item.id, -1)} className="w-8 h-8 flex items-center justify-center text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors font-bold">-</button>
-                        <span className="w-8 text-center text-xs font-bold text-[#0F172A]">{item.quantity}</span>
-                        <button onClick={() => updateQuantity(item.id, 1)} className="w-8 h-8 flex items-center justify-center text-slate-500 hover:bg-[#E0F2FE] hover:text-[#0284C7] transition-colors font-bold">+</button>
-                      </div>
+                    <div><h4 className="font-bold text-[#0F172A] text-sm">{item.name}</h4><p className="text-[#0284C7] font-black text-sm">{formatRupiah(item.price)}</p></div>
+                    <div className="flex items-center bg-slate-50 border border-slate-100 rounded-full overflow-hidden w-max mt-2">
+                      <button onClick={() => updateQuantity(item.id, -1)} className="w-8 h-8 font-bold text-slate-500">-</button>
+                      <span className="w-8 text-center text-xs font-bold">{item.quantity}</span>
+                      <button onClick={() => updateQuantity(item.id, 1)} className="w-8 h-8 font-bold text-[#0284C7]">+</button>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
-          )}
-        </div>
-        <div className="p-6 bg-white border-t border-slate-100 shadow-[0_-10px_30px_rgba(0,0,0,0.03)]">
-          <div className="flex items-center justify-between mb-4"><span className="text-slate-500 font-medium">Total Pembayaran</span><span className="text-2xl font-black text-[#0F172A]">{formatRupiah(totalPrice)}</span></div>
-          <button disabled={cart.length === 0} onClick={() => navigate('/checkout', { state: { cart, totalPrice } })} className={`w-full py-4 rounded-full font-bold transition-all shadow-lg flex items-center justify-center gap-2 mb-3 ${cart.length === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-[#0F172A] text-white hover:bg-[#1E293B] shadow-slate-900/20 hover:shadow-xl active:scale-95'}`}>Lanjut ke Pembayaran <span>➔</span></button>
-          {cart.length > 0 && <button onClick={() => setIsCartOpen(false)} className="w-full text-center py-2 text-sm font-bold text-slate-400 hover:text-slate-700 transition-colors">Pilih Produk Lainnya</button>}
-        </div>
-      </div>
+            <div className="p-6 bg-white border-t border-slate-100">
+              <div className="flex items-center justify-between mb-4"><span className="text-slate-500 font-medium">Total Pembayaran</span><span className="text-2xl font-black text-[#0F172A]">{formatRupiah(totalPrice)}</span></div>
+              <button onClick={() => navigate('/checkout', { state: { cart, totalPrice } })} className="w-full py-4 rounded-full bg-[#0F172A] text-white font-bold">Lanjut ke Pembayaran ➔</button>
+            </div>
+          </div>
+        </>
+      )}
       <style dangerouslySetInnerHTML={{ __html: `.hide-scrollbar::-webkit-scrollbar { display: none; } .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }`}} />
     </div>
   );

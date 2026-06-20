@@ -28,7 +28,8 @@ export default function LoginPage() {
         password: formData.password
       });
 
-      localStorage.setItem('user', JSON.stringify(response.data));
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      localStorage.setItem('token', response.data.token);
       setIsLoading(false);
       
       if (response.data.role === 'admin') {
