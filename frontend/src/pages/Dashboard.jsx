@@ -436,9 +436,10 @@ export default function Dashboard() {
 
       {isTicketModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A]/70 backdrop-blur-md p-4 transition-all">
-          <div className="bg-white w-full max-w-4xl rounded-[32px] shadow-2xl flex flex-col md:flex-row overflow-hidden max-h-[90vh] animate-[bounce_0.3s_ease-out]">
+          
+          <div className="bg-white w-full max-w-4xl rounded-[32px] shadow-2xl flex flex-col md:flex-row overflow-hidden h-[90vh] md:h-auto max-h-[90vh] animate-[bounce_0.3s_ease-out]">
             
-            <div className="w-full md:w-5/12 bg-slate-50 p-6 md:p-8 border-r border-slate-100 flex flex-col overflow-y-auto">
+            <div className={`w-full md:w-5/12 bg-slate-50 p-6 md:p-8 border-r border-slate-100 flex-col overflow-y-auto ${selectedTicket ? 'hidden md:flex' : 'flex'}`}>
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-2xl font-black text-[#0F172A]">Riwayat Tiket</h3>
                 <button onClick={() => { setIsTicketModalOpen(false); setSelectedTicket(null); setActiveTicketTab('Aktif'); }} className="md:hidden w-8 h-8 flex items-center justify-center bg-slate-200 rounded-full font-bold text-slate-500">✕</button>
@@ -471,11 +472,18 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div className="w-full md:w-7/12 p-6 md:p-10 flex flex-col items-center justify-center relative bg-gradient-to-br from-slate-50 to-[#E0F2FE]/40">
+            <div className={`w-full md:w-7/12 p-6 md:p-10 flex-col items-center justify-center relative bg-gradient-to-br from-slate-50 to-[#E0F2FE]/40 overflow-y-auto md:overflow-visible ${!selectedTicket ? 'hidden md:flex' : 'flex'}`}>
+              
               <button onClick={() => { setIsTicketModalOpen(false); setSelectedTicket(null); setActiveTicketTab('Aktif'); }} className="hidden md:flex absolute top-6 right-6 w-10 h-10 items-center justify-center bg-white border border-slate-200 hover:bg-slate-100 text-slate-500 rounded-full font-bold transition-all shadow-sm z-10">✕</button>
               
+              <div className="w-full md:hidden mb-6 mt-2 flex justify-start">
+                <button onClick={() => setSelectedTicket(null)} className="flex items-center gap-2 text-sm font-bold text-slate-500 bg-white px-5 py-2.5 rounded-full shadow-sm border border-slate-100">
+                  <span>←</span> Kembali
+                </button>
+              </div>
+
               {selectedTicket ? (
-                <div className="w-full max-w-sm relative group">
+                <div className="w-full max-w-sm relative group mb-6 md:mb-0">
                   <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100 transition-transform duration-500 hover:-translate-y-2">
                     
                     <div className="bg-gradient-to-r from-[#0F172A] to-[#0284C7] p-6 text-center text-white relative">
