@@ -330,71 +330,52 @@ export default function Dashboard() {
       )}
 
       {isProfileModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A]/70 backdrop-blur-md p-4 transition-all">
-          <div className="bg-white w-full max-w-md rounded-[40px] shadow-[0_20px_50px_rgba(0,0,0,0.2)] overflow-hidden relative animate-[bounce_0.3s_ease-out]">
-            
-            <div className="h-32 bg-gradient-to-r from-[#0F172A] to-[#0284C7] relative">
-              <svg className="absolute bottom-0 w-full" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320">
-                <path fill="#ffffff" fillOpacity="1" d="M0,192L48,197.3C96,203,192,208,288,192C384,176,480,139,576,144C672,149,768,197,864,197.3C960,197,1056,149,1152,138.7C1248,128,1344,155,1392,165.3L1440,176L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
-              </svg>
-              <button onClick={() => setIsProfileModalOpen(false)} className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center bg-white/20 hover:bg-white/40 backdrop-blur-md text-white rounded-full transition-all z-10">✕</button>
-            </div>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 transition-all">
+          <div className="bg-white w-full max-w-sm rounded-[32px] shadow-2xl overflow-hidden relative">
 
-            <div className="px-8 pb-8 -mt-16 relative text-center">
-              <div className="w-28 h-28 bg-white p-2 rounded-[35px] shadow-xl mx-auto mb-4 relative">
-                <div className="w-full h-full bg-gradient-to-br from-[#E0F2FE] to-[#BAE6FD] text-[#0284C7] rounded-[28px] flex items-center justify-center text-4xl font-black border border-blue-100">
+            <button onClick={() => setIsProfileModalOpen(false)} className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center bg-white/20 hover:bg-white/40 text-white rounded-full transition-all z-10 font-bold backdrop-blur-md">
+              ✕
+            </button>
+
+            <div className="h-28 bg-gradient-to-tr from-[#0284C7] to-[#38BDF8]"></div>
+
+            <div className="px-6 pb-8 relative text-center">
+              
+              <div className="w-24 h-24 mx-auto -mt-12 mb-3 rounded-full p-1.5 bg-white shadow-lg relative">
+                <div className="w-full h-full bg-[#F0F9FF] text-[#0284C7] rounded-full flex items-center justify-center text-3xl font-black border border-blue-100">
                   {user.name.charAt(0).toUpperCase()}
                 </div>
-                <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-emerald-500 border-4 border-white rounded-full flex items-center justify-center shadow-lg" title="Akun Aktif">
-                  <span className="text-[10px] text-white">✓</span>
+                <div className="absolute bottom-0 right-0 w-7 h-7 bg-emerald-500 border-2 border-white rounded-full flex items-center justify-center shadow-sm">
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
                 </div>
               </div>
 
-              <h3 className="text-2xl font-black text-[#0F172A] leading-tight mb-1">{user.name}</h3>
-              <p className="text-slate-500 text-sm font-medium mb-1">{user.email}</p>
-              <div className="flex items-center justify-center gap-2 text-[#0284C7] bg-blue-50 w-fit mx-auto px-4 py-1.5 rounded-full border border-blue-100 mb-8">
-                <span className="text-xs font-black uppercase tracking-widest">Pelanggan Setia</span>
-              </div>
+              <h3 className="text-xl font-black text-[#0F172A]">{user.name}</h3>
+              <p className="text-slate-500 text-sm font-medium mt-0.5 mb-1">{user.email}</p>
+              {user.phone && <p className="text-slate-400 text-xs font-bold mb-5">📞 {user.phone}</p>}
 
-              <div className="grid grid-cols-2 gap-4 mb-8">
-                <div className="bg-[#F8FAFC] p-5 rounded-3xl border border-slate-100 group hover:border-blue-200 transition-all">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 group-hover:text-blue-400 transition-colors">Tiket Saya</p>
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="text-2xl font-black text-[#0F172A]">{userTickets.length}</span>
-                    <span className="text-lg">🎟️</span>
-                  </div>
+              <div className="flex gap-3 mb-6">
+                <div className="flex-1 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Tiket Saya</p>
+                  <p className="text-xl font-black text-[#0F172A]">{userTickets.length}</p>
                 </div>
-                <div className="bg-[#F8FAFC] p-5 rounded-3xl border border-slate-100 group hover:border-blue-200 transition-all">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 group-hover:text-blue-400 transition-colors">Total Belanja</p>
-                  <p className="text-sm font-black text-[#0284C7] truncate">{formatRupiah(userTickets.reduce((sum, t) => sum + Number(t.total_price), 0))}</p>
+                <div className="flex-1 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Belanja</p>
+                  <p className="text-sm font-black text-[#0284C7] mt-1 truncate">{formatRupiah(userTickets.reduce((sum, t) => sum + Number(t.total_price), 0))}</p>
                 </div>
               </div>
 
               <div className="space-y-3">
-                <button 
-                  onClick={handleOpenEditProfile} 
-                  className="w-full py-4 rounded-2xl bg-white border-2 border-slate-100 text-[#0F172A] font-bold hover:border-[#0284C7] hover:text-[#0284C7] hover:bg-blue-50/50 transition-all flex items-center justify-between px-6 group"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-lg">⚙️</span>
-                    <span>Pengaturan Profil</span>
-                  </div>
-                  <span className="opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all">➔</span>
+                <button onClick={handleOpenEditProfile} className="w-full py-3.5 rounded-xl bg-slate-50 text-slate-700 font-bold hover:bg-slate-100 border border-slate-100 transition-all flex items-center justify-between px-5">
+                  <span className="flex items-center gap-3"><span className="text-lg">⚙️</span> Pengaturan Profil</span>
+                  <span className="text-slate-400 font-normal">➔</span>
                 </button>
-
-                <button 
-                  onClick={handleLogout} 
-                  className="w-full py-4 rounded-2xl bg-[#FFF1F2] border-2 border-transparent text-[#E11D48] font-bold hover:bg-[#FFE4E6] hover:border-[#FB7185]/30 transition-all flex items-center justify-between px-6 group"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-lg">🚪</span>
-                    <span>Keluar Akun</span>
-                  </div>
-                  <span className="opacity-50 group-hover:translate-x-1 transition-all">➔</span>
+                <button onClick={handleLogout} className="w-full py-3.5 rounded-xl bg-red-50 text-red-600 font-bold hover:bg-red-100 transition-all flex items-center justify-between px-5">
+                  <span className="flex items-center gap-3"><span className="text-lg">🚪</span> Keluar Akun</span>
+                  <span className="text-red-300 font-normal">➔</span>
                 </button>
               </div>
 
-              <p className="text-[10px] text-slate-400 mt-8 font-bold uppercase tracking-[0.2em]">PahawangSync • v1.2</p>
             </div>
           </div>
         </div>

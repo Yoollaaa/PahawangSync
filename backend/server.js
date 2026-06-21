@@ -16,7 +16,7 @@ const pool = new Pool({
   user: 'postgres',
   host: 'localhost',
   database: 'pahawang_sync',
-  password: 'Febby123', 
+  password: '2270', 
   port: 5432,
 });
 
@@ -117,7 +117,12 @@ app.get('/api/assets', async (req, res) => {
       SELECT 
         a.*, 
         (a.stock - COALESCE(
-          (SELECT SUM(quantity) FROM reservations WHERE asset_id = a.id AND DATE(booking_date) = CURRENT_DATE), 0
+          (SELECT SUM(quantity) 
+           FROM reservations 
+           WHERE asset_id = a.id 
+           AND DATE(booking_date) = CURRENT_DATE 
+           AND status IN ('Pending', 'Confirmed', 'Completed') 
+          ), 0
         )) AS stok_hari_ini 
       FROM assets a 
       ORDER BY a.id ASC
@@ -192,29 +197,23 @@ app.post('/api/reservations', async (req, res) => {
     }
 });
 
-app.put('/api/reservations/:id/complete', async (req, res) => {
+app.put('/api/reservations/:id/confirm', async (req, res) => {
+  const { id } = req.params;
+  
   try {
-    const qrData = req.params.id; 
-    let ticketId = qrData;
-
-    if (qrData.includes('PHW-TICKET-')) {
-      ticketId = qrData.split('-')[2]; 
+    const result = await pool.query(
+      "UPDATE reservations SET status = 'Confirmed' WHERE id = $1 RETURNING *",
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Data pesanan tidak ditemukan di database." });
     }
-
-    const checkTicket = await pool.query('SELECT status FROM reservations WHERE id = $1', [ticketId]);
     
-    if (checkTicket.rows.length === 0) return res.status(404).json({ error: "Tiket tidak ditemukan di sistem!" });
-
-    const currentStatus = checkTicket.rows[0].status ? checkTicket.rows[0].status.trim() : '';
-
-    if (currentStatus === 'Completed') return res.status(400).json({ error: "Gagal! Tiket ini sudah pernah digunakan." });
-
-    await pool.query("UPDATE reservations SET status = 'Completed' WHERE id = $1", [ticketId]);
-    
-    res.status(200).json({ message: "Selesai!" });
+    res.status(200).json({ message: "Pesanan berhasil dikonfirmasi!", data: result.rows[0] });
   } catch (error) {
-    console.error("Error validasi tiket:", error);
-    res.status(500).json({ error: "Gagal memproses validasi" });
+    console.error("❌ Error saat konfirmasi:", error.message);
+    res.status(500).json({ error: "Gagal mengkonfirmasi pesanan" });
   }
 });
 

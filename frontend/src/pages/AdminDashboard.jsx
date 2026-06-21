@@ -156,7 +156,7 @@ export default function AdminDashboard() {
   };
 
   const getDisplayStatus = (status, dateString) => {
-    if (status !== 'Confirmed') return status;
+    if (status === 'Pending') return 'Pending';
 
     const bookingDate = new Date(dateString);
     const today = new Date();
@@ -164,7 +164,11 @@ export default function AdminDashboard() {
     bookingDate.setHours(0, 0, 0, 0);
     today.setHours(0, 0, 0, 0);
 
-    return bookingDate < today ? 'Completed' : 'Confirmed';
+    if (status === 'Confirmed' && bookingDate < today) {
+      return 'Completed'; 
+    }
+
+    return status;
   };
 
   const handleScanTicket = async (text) => {
@@ -458,15 +462,15 @@ export default function AdminDashboard() {
                       <div className="w-full md:w-auto flex justify-end">
                         {res.status === 'Pending' ? (
                           <button onClick={() => handleConfirmReservation(res.id)} className="w-full md:w-auto px-4 py-2 bg-[#00B4D8] hover:bg-[#0096C7] text-white rounded text-xs font-bold transition-all shadow-md">
-                            Konfirmasi
+                            Konfirmasi Stok
                           </button>
                         ) : (
                           <span className={`px-3 py-1.5 rounded text-[10px] md:text-xs font-bold uppercase tracking-wider text-center w-full md:w-auto ${
                             getDisplayStatus(res.status, res.booking_date) === 'Completed' 
                               ? 'bg-slate-100 text-slate-500' 
-                              : 'bg-emerald-50 text-emerald-600'
+                              : 'bg-emerald-50 text-emerald-600' 
                           }`}>
-                            {getDisplayStatus(res.status, res.booking_date)}
+                            {getDisplayStatus(res.status, res.booking_date) === 'Completed' ? 'Selesai/Dipakai' : 'Siap Pakai'}
                           </span>
                         )}
                       </div>
