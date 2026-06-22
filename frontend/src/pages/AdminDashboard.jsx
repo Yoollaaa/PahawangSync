@@ -181,18 +181,19 @@ export default function AdminDashboard() {
             return;
         }
 
-        const response = await fetch(`http://localhost:5000/api/reservations/${idTiketAsli}/complete`, { method: 'PUT' });
+        const safeUrl = `http://localhost:5000/api/reservations/${encodeURIComponent(idTiketAsli)}/complete`;
+        const response = await fetch(safeUrl, { method: 'PUT' });
         
         if (response.ok) {
-          setScanMessage({ type: 'success', text: `Berhasil! Tiket #${idTiketAsli} telah divalidasi.` });
+          setScanMessage({ type: 'success', text: `Berhasil! Tiket telah divalidasi dan stok dikurangi.` });
           fetchReservations(); 
         } else {
           const errorData = await response.json();
-          setScanMessage({ type: 'error', text: errorData.error || `Gagal memvalidasi tiket #${idTiketAsli}.` });
+          setScanMessage({ type: 'error', text: errorData.error || `Gagal memvalidasi tiket.` });
         }
       } catch (e) { 
         console.error(e); 
-        setScanMessage({ type: 'error', text: 'Terjadi kesalahan jaringan.' });
+        setScanMessage({ type: 'error', text: 'Terjadi kesalahan jaringan atau server mati.' });
       }
     }
   };

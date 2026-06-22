@@ -217,6 +217,41 @@ app.put('/api/reservations/:id/confirm', async (req, res) => {
   }
 });
 
+app.put('/api/reservations/:id/complete', async (req, res) => {
+  try {
+    const qrData = req.params.id; 
+    let ticketId = qrData;
+
+    if (qrData.includes('PHW-TICKET-')) {
+      const parts = qrData.split('-');
+      ticketId = parts[2]; 
+    }
+
+    if (isNaN(ticketId) || !ticketId) {
+      return res.status(400).json({ error: "Format QR Code tidak dikenali!" });
+    }
+
+    const checkTicket = await pool.query('SELECT status FROM reservations WHERE id = $1', [Number(ticketId)]);
+    
+    if (checkTicket.rows.length === 0) {
+      return res.status(404).json({ error: "Tiket tidak ditemukan di database sistem!" });
+    }
+
+    const currentStatus = checkTicket.rows[0].status ? checkTicket.rows[0].status.trim() : '';
+
+    if (currentStatus === 'Completed') {
+      return res.status(400).json({ error: "Ditolak! Tiket ini sudah pernah di-scan/digunakan." });
+    }
+
+    await pool.query("UPDATE reservations SET status = 'Completed' WHERE id = $1", [Number(ticketId)]);
+    
+    res.status(200).json({ message: "Selesai!" });
+  } catch (error) {
+    console.error("Error validasi tiket:", error);
+    res.status(500).json({ error: "Gagal memproses validasi di server" });
+  }
+});
+
 app.get('/api/finance', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM transactions ORDER BY date DESC');
