@@ -3,6 +3,8 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { Scanner } from '@yudiel/react-qr-scanner';
 
+const TOURISM_CATEGORIES = ['Hutan', 'Gunung', 'Laut', 'Satwa Liar', 'Theme Park'];
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [activeMenu, setActiveMenu] = useState('dashboard');
@@ -17,7 +19,7 @@ export default function AdminDashboard() {
   const [dashboardStats, setDashboardStats] = useState({ revenue: 0, guestsToday: 0 });
   const [adminName, setAdminName] = useState('Administrator'); 
   
-  const [formData, setFormData] = useState({ name: '', category: 'Villa', price: '', stock: '' });
+  const [formData, setFormData] = useState({ name: '', category: 'Laut', price: '', stock: '' });
 
   useEffect(() => {
     const token = localStorage.getItem('adminToken');
@@ -66,6 +68,8 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (activeMenu === 'dashboard') fetchDashboardStats();
+    if (activeMenu === 'dashboard') fetchReservations();
+    if (activeMenu === 'dashboard') fetchFinance();
     else if (activeMenu === 'inventory') fetchAssets();
     else if (activeMenu === 'calendar') fetchReservations();
     else if (activeMenu === 'finance') fetchFinance();
@@ -90,7 +94,7 @@ export default function AdminDashboard() {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditId(null);
-    setFormData({ name: '', category: 'Villa', price: '', stock: '' });
+    setFormData({ name: '', category: 'Laut', price: '', stock: '' });
   };
 
   const handleSubmit = async (e) => {
@@ -116,7 +120,7 @@ export default function AdminDashboard() {
       
       setIsModalOpen(false);
       setEditId(null);
-      setFormData({ name: '', category: 'Villa', price: '', stock: '', image_url: '', description: '' });
+      setFormData({ name: '', category: 'Laut', price: '', stock: '', image_url: '', description: '' });
       
     } catch (error) {
       console.error("Gagal menyimpan data:", error);
@@ -233,13 +237,91 @@ export default function AdminDashboard() {
   };
 
   const formatRupiah = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
+  const availableAssets = assets.filter((item) => Number(item.stock) > 0).length;
+  const unavailableAssets = assets.filter((item) => Number(item.stock) <= 0).length;
+  const activeReservations = reservations.filter((item) => item.status === 'Pending' || item.status === 'Confirmed').length;
+  const completedReservations = reservations.filter((item) => item.status === 'Completed').length;
+  const categoryAnalytics = TOURISM_CATEGORIES.map((category) => ({
+    category,
+    count: assets.filter((item) => item.category === category).length,
+  }));
+  const currentMonth = new Date();
+  const currentMonthIndex = currentMonth.getMonth();
+  const currentYear = currentMonth.getFullYear();
+  const monthlyTargets = {
+    revenue: 30000000,
+    reservations: 120,
+    bookedUnits: 250,
+  };
+  const monthlyReservations = reservations.filter((reservation) => {
+    const bookingDate = new Date(reservation.booking_date);
+    return bookingDate.getMonth() === currentMonthIndex && bookingDate.getFullYear() === currentYear;
+  });
+  const monthlyRevenue = financeData.transactions
+    .filter((transaction) => {
+      const transactionDate = new Date(transaction.date);
+      return transaction.type === 'Pemasukan' && transactionDate.getMonth() === currentMonthIndex && transactionDate.getFullYear() === currentYear;
+    })
+    .reduce((total, transaction) => total + Number(transaction.amount || 0), 0);
+  const revenueValue = dashboardStats.revenue || monthlyRevenue;
+  const monthlyBookedUnits = monthlyReservations.reduce((total, reservation) => total + Number(reservation.quantity || 0), 0);
+  const categoryMax = Math.max(...categoryAnalytics.map((item) => item.count), 1);
+  const revenueProgress = Math.min((revenueValue / monthlyTargets.revenue) * 100, 100);
+  const reservationProgress = Math.min((monthlyReservations.length / monthlyTargets.reservations) * 100, 100);
+  const unitsProgress = Math.min((monthlyBookedUnits / monthlyTargets.bookedUnits) * 100, 100);
+  const latestBookingDate = reservations.length > 0
+    ? reservations.reduce((latest, reservation) => {
+        const reservationDate = new Date(reservation.booking_date);
+        return reservationDate > latest ? reservationDate : latest;
+      }, new Date(reservations[0].booking_date))
+    : new Date();
+  const lastSevenDays = Array.from({ length: 7 }, (_, index) => {
+    const trendDate = new Date(latestBookingDate);
+    trendDate.setDate(latestBookingDate.getDate() - (6 - index));
+    const totalBookings = reservations.filter((reservation) => {
+      const reservationDate = new Date(reservation.booking_date);
+      return reservationDate.getFullYear() === trendDate.getFullYear() && reservationDate.getMonth() === trendDate.getMonth() && reservationDate.getDate() === trendDate.getDate();
+    }).reduce((total, reservation) => total + Number(reservation.quantity || 0), 0);
+    return {
+      label: trendDate.toLocaleDateString('id-ID', { day: 'numeric' }),
+      value: totalBookings,
+    };
+  });
+  const trendMax = Math.max(...lastSevenDays.map((item) => item.value), 1);
+  const reservationStatusData = [
+    { label: 'Pending', value: reservations.filter((item) => item.status === 'Pending').length, color: '#F59E0B' },
+    { label: 'Confirmed', value: reservations.filter((item) => item.status === 'Confirmed').length, color: '#0284C7' },
+    { label: 'Completed', value: reservations.filter((item) => item.status === 'Completed').length, color: '#10B981' },
+  ];
+  const topCategories = [...categoryAnalytics].sort((a, b) => b.count - a.count);
+  const peakTrendDay = lastSevenDays.reduce((best, current) => (current.value > best.value ? current : best), lastSevenDays[0] || { label: '', value: 0 });
+  const reservationTotal = Math.max(reservations.length, 1);
+  const businessHealth = [
+    {
+      label: 'Occupancy',
+      value: assets.length > 0 ? Math.round((availableAssets / assets.length) * 100) : 0,
+      hint: 'aset siap dipakai',
+      color: 'from-[#0EA5E9] to-[#67E8F9]'
+    },
+    {
+      label: 'Pendapatan',
+      value: Math.round(revenueProgress),
+      hint: 'terhadap target bulanan',
+      color: 'from-[#8B5CF6] to-[#C4B5FD]'
+    },
+    {
+      label: 'Booking flow',
+      value: Math.round(reservationProgress),
+      hint: 'reservasi bulan ini',
+      color: 'from-[#F97316] to-[#FDBA74]'
+    },
+  ];
 
   return (
     <div 
       className="min-h-screen text-slate-800 font-sans bg-cover bg-center bg-fixed"
       style={{ backgroundImage: "url('https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?q=80&w=2070&auto=format&fit=crop')" }}
     >
-      
       <div className="min-h-screen bg-slate-50/60 backdrop-blur-sm">
         
         <nav className="sticky top-0 z-50 w-full backdrop-blur-md bg-white/90 md:bg-white/70 border-b border-white/50 shadow-sm transition-all">
@@ -390,6 +472,232 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+            <div className="md:col-span-3 rounded-[30px] overflow-hidden shadow-[0_24px_80px_rgba(15,23,42,0.18)] border border-white/70 bg-white/80 backdrop-blur-xl relative">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.18),_transparent_30%),radial-gradient(circle_at_top_right,_rgba(244,114,182,0.14),_transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.7),rgba(248,250,252,0.95))]"></div>
+              <div className="relative z-10 p-5 md:p-7 lg:p-8 text-[#0F172A]">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
+                  <div>
+                    <p className="text-[10px] md:text-xs font-black uppercase tracking-[0.35em] text-[#0284C7] mb-2">Business analytics</p>
+                    <h3 className="text-2xl md:text-3xl font-black tracking-tight text-[#0F172A]">Analitik Wisata</h3>
+                    <p className="text-sm text-slate-500 font-medium mt-1">Data real dari kalender reservasi, inventaris, dan transaksi bulan ini.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center px-3 py-1.5 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-widest bg-[#0F172A] text-white shadow-sm">Live data</span>
+                    <span className="inline-flex items-center px-3 py-1.5 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-widest bg-white text-slate-600 border border-slate-200 shadow-sm">This month</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-5 mb-6">
+                  {businessHealth.map((item) => (
+                    <div key={item.label} className="rounded-[22px] p-4 md:p-5 bg-white/80 border border-white shadow-[0_12px_30px_rgba(15,23,42,0.06)] backdrop-blur-sm">
+                      <p className="text-[10px] md:text-xs font-black uppercase tracking-[0.25em] text-slate-400 mb-2">{item.label}</p>
+                      <div className="flex items-end justify-between gap-3">
+                        <div>
+                          <p className="text-3xl font-black text-[#0F172A]">{item.value}%</p>
+                          <p className="text-xs text-slate-500 mt-1">{item.hint}</p>
+                        </div>
+                        <div className={`w-14 h-14 rounded-full bg-gradient-to-br ${item.color} flex items-center justify-center text-white font-black text-sm shadow-lg`}>{item.value}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-1 xl:grid-cols-[1.3fr_0.9fr] gap-4">
+                  <div className="rounded-[28px] bg-[#0F172A] text-white p-5 md:p-6 shadow-[0_18px_50px_rgba(15,23,42,0.25)] relative overflow-hidden">
+                    <div className="absolute inset-0 opacity-35 bg-[radial-gradient(circle_at_top_right,_rgba(14,165,233,0.35),_transparent_32%),radial-gradient(circle_at_bottom_left,_rgba(244,114,182,0.2),_transparent_30%)]"></div>
+                    <div className="relative z-10 flex items-start justify-between gap-4 mb-5">
+                      <div>
+                        <h4 className="font-black text-lg md:text-xl">Tren Booking 7 Hari</h4>
+                        <p className="text-white/65 text-sm mt-1">Jumlah unit yang dipesan dari kalender reservasi.</p>
+                      </div>
+                      <div className="rounded-2xl bg-white/10 border border-white/10 px-3 py-2 text-right backdrop-blur-sm">
+                        <p className="text-[10px] uppercase tracking-[0.25em] text-white/60 font-bold">Peak day</p>
+                        <p className="text-lg font-black">{peakTrendDay.label || '-'}</p>
+                        <p className="text-xs text-white/60">{peakTrendDay.value} unit</p>
+                      </div>
+                    </div>
+
+                    <div className="relative z-10 h-64 md:h-72">
+                      <svg viewBox="0 0 700 300" className="w-full h-full overflow-visible">
+                        <defs>
+                          <linearGradient id="trendLineGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#93C5FD" stopOpacity="0.95" />
+                            <stop offset="100%" stopColor="#22D3EE" stopOpacity="1" />
+                          </linearGradient>
+                          <linearGradient id="trendAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#38BDF8" stopOpacity="0.35" />
+                            <stop offset="100%" stopColor="#38BDF8" stopOpacity="0.03" />
+                          </linearGradient>
+                        </defs>
+
+                        {[0, 1, 2, 3].map((line) => (
+                          <line key={line} x1="40" y1={50 + line * 55} x2="660" y2={50 + line * 55} stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
+                        ))}
+
+                        {(() => {
+                          const chartWidth = 620;
+                          const chartHeight = 200;
+                          const originX = 40;
+                          const originY = 245;
+                          const points = lastSevenDays.map((day, index) => {
+                            const x = originX + (chartWidth / (lastSevenDays.length - 1)) * index;
+                            const y = originY - (day.value / trendMax) * chartHeight;
+                            return { x, y, value: day.value, label: day.label };
+                          });
+                          const linePath = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
+                          const areaPath = `${linePath} L ${points[points.length - 1].x} ${originY} L ${points[0].x} ${originY} Z`;
+
+                          return (
+                            <>
+                              <path d={areaPath} fill="url(#trendAreaGradient)" />
+                              <path d={linePath} fill="none" stroke="url(#trendLineGradient)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+                              {points.map((point) => (
+                                <g key={`${point.label}-${point.x}`}>
+                                  <circle cx={point.x} cy={point.y} r="8" fill="#0F172A" stroke="#7DD3FC" strokeWidth="4" />
+                                  <text x={point.x} y="277" textAnchor="middle" fill="rgba(255,255,255,0.78)" fontSize="13" fontWeight="700">{point.label}</text>
+                                  <text x={point.x} y={point.y - 18} textAnchor="middle" fill="#E0F2FE" fontSize="12" fontWeight="700">{point.value}</text>
+                                </g>
+                              ))}
+                            </>
+                          );
+                        })()}
+                      </svg>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="rounded-[28px] bg-white/90 border border-white shadow-[0_12px_30px_rgba(15,23,42,0.07)] p-5 md:p-6">
+                      <div className="flex items-center justify-between gap-3 mb-5">
+                        <div>
+                          <h4 className="font-black text-[#0F172A]">Komposisi Reservasi</h4>
+                          <p className="text-xs text-slate-500 mt-1">Status kalender yang sedang berjalan.</p>
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-[0.25em] text-[#0284C7]">Realtime</span>
+                      </div>
+
+                      <div className="relative mx-auto w-44 h-44 md:w-52 md:h-52">
+                        <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
+                          <circle cx="60" cy="60" r="42" fill="none" stroke="#E2E8F0" strokeWidth="12" />
+                          {reservationStatusData.map((item, index) => {
+                            const offset = reservationStatusData.slice(0, index).reduce((sum, current) => sum + current.value, 0);
+                            const circumference = 264;
+                            const strokeDasharray = `${(item.value / reservationTotal) * circumference} ${circumference}`;
+                            const strokeDashoffset = -(offset / reservationTotal) * circumference;
+                            return (
+                              <circle
+                                key={item.label}
+                                cx="60"
+                                cy="60"
+                                r="42"
+                                fill="none"
+                                stroke={item.color}
+                                strokeWidth="12"
+                                strokeDasharray={strokeDasharray}
+                                strokeDashoffset={strokeDashoffset}
+                                strokeLinecap="round"
+                              />
+                            );
+                          })}
+                        </svg>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                          <p className="text-[10px] uppercase tracking-[0.3em] text-slate-400 font-black">Total</p>
+                          <p className="text-4xl font-black text-[#0F172A]">{reservations.length}</p>
+                          <p className="text-xs text-slate-500 mt-1">Reservasi tercatat</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 grid grid-cols-3 gap-2">
+                        {reservationStatusData.map((item) => (
+                          <div key={item.label} className="rounded-2xl bg-slate-50 border border-slate-100 p-3 text-center">
+                            <div className="w-3 h-3 rounded-full mx-auto mb-2" style={{ backgroundColor: item.color }}></div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{item.label}</p>
+                            <p className="text-lg font-black text-[#0F172A]">{item.value}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-[28px] bg-white/90 border border-white shadow-[0_12px_30px_rgba(15,23,42,0.07)] p-5 md:p-6">
+                      <div className="flex items-center justify-between gap-3 mb-4">
+                        <div>
+                          <h4 className="font-black text-[#0F172A]">Top Kategori</h4>
+                          <p className="text-xs text-slate-500 mt-1">Kategori wisata paling aktif.</p>
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Chart</span>
+                      </div>
+
+                      <div className="space-y-3">
+                        {topCategories.map((item, index) => {
+                          const barWidth = assets.length > 0 ? Math.max((item.count / assets.length) * 100, item.count > 0 ? 10 : 0) : 0;
+                          const accent = ['from-[#0EA5E9] to-[#38BDF8]', 'from-[#F97316] to-[#FDBA74]', 'from-[#22C55E] to-[#86EFAC]', 'from-[#8B5CF6] to-[#C4B5FD]', 'from-[#EC4899] to-[#F9A8D4]'][index % 5];
+                          return (
+                            <div key={item.category}>
+                              <div className="flex items-center justify-between text-sm mb-1.5">
+                                <span className="font-semibold text-slate-700">{item.category}</span>
+                                <span className="font-black text-[#0F172A]">{item.count} item</span>
+                              </div>
+                              <div className="h-3 rounded-full bg-slate-100 overflow-hidden">
+                                <div className={`h-full rounded-full bg-gradient-to-r ${accent}`} style={{ width: `${barWidth}%` }}></div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-[28px] bg-white/90 border border-white shadow-[0_12px_30px_rgba(15,23,42,0.07)] p-5 md:p-6">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-5">
+                    <div>
+                      <h4 className="font-black text-[#0F172A] text-lg md:text-xl">Target Pencapaian Bulanan</h4>
+                      <p className="text-sm text-slate-500 mt-1">Realisasi bisnis berdasarkan data reservasi dan transaksi bulan ini.</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <span className="px-3 py-1.5 rounded-full bg-[#0F172A] text-white text-[10px] font-black uppercase tracking-widest">Revenue</span>
+                      <span className="px-3 py-1.5 rounded-full bg-[#F97316]/10 text-[#C2410C] text-[10px] font-black uppercase tracking-widest">Reservations</span>
+                      <span className="px-3 py-1.5 rounded-full bg-[#22C55E]/10 text-[#15803D] text-[10px] font-black uppercase tracking-widest">Units</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <div className="flex items-center justify-between text-sm mb-2">
+                        <span className="font-semibold text-slate-700">Pendapatan</span>
+                        <span className="font-black text-[#0F172A]">{revenueProgress.toFixed(0)}%</span>
+                      </div>
+                      <div className="h-3.5 rounded-full bg-slate-100 overflow-hidden">
+                        <div className="h-full rounded-full bg-gradient-to-r from-[#0F172A] via-[#0284C7] to-[#38BDF8]" style={{ width: `${revenueProgress}%` }}></div>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-2">Target: {formatRupiah(monthlyTargets.revenue)} · Realisasi: {formatRupiah(revenueValue)}</p>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between text-sm mb-2">
+                        <span className="font-semibold text-slate-700">Reservasi</span>
+                        <span className="font-black text-[#0F172A]">{reservationProgress.toFixed(0)}%</span>
+                      </div>
+                      <div className="h-3.5 rounded-full bg-slate-100 overflow-hidden">
+                        <div className="h-full rounded-full bg-gradient-to-r from-[#F97316] via-[#FB923C] to-[#FDE68A]" style={{ width: `${reservationProgress}%` }}></div>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-2">Target: {monthlyTargets.reservations} reservasi · Realisasi: {monthlyReservations.length}</p>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between text-sm mb-2">
+                        <span className="font-semibold text-slate-700">Unit Terpesan</span>
+                        <span className="font-black text-[#0F172A]">{unitsProgress.toFixed(0)}%</span>
+                      </div>
+                      <div className="h-3.5 rounded-full bg-slate-100 overflow-hidden">
+                        <div className="h-full rounded-full bg-gradient-to-r from-[#22C55E] via-[#4ADE80] to-[#BBF7D0]" style={{ width: `${unitsProgress}%` }}></div>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-2">Target: {monthlyTargets.bookedUnits} unit · Realisasi: {monthlyBookedUnits} unit</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         )}
 
@@ -397,7 +705,7 @@ export default function AdminDashboard() {
           <div className="bg-white/90 backdrop-blur-md rounded-xl shadow-sm border border-slate-200/50 p-4 md:p-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
               <h3 className="text-lg font-bold text-[#091E3A]">Daftar Fasilitas</h3>
-              <button onClick={() => { setEditId(null); setFormData({ name: '', category: 'Villa', price: '', stock: '' }); setIsModalOpen(true); }} className="w-full sm:w-auto px-5 py-2.5 bg-[#00B4D8] hover:bg-[#0096C7] text-white text-sm font-semibold rounded-lg transition-all shadow-md text-center">Tambah Aset</button>
+              <button onClick={() => { setEditId(null); setFormData({ name: '', category: 'Laut', price: '', stock: '' }); setIsModalOpen(true); }} className="w-full sm:w-auto px-5 py-2.5 bg-[#00B4D8] hover:bg-[#0096C7] text-white text-sm font-semibold rounded-lg transition-all shadow-md text-center">Tambah Aset</button>
             </div>
             <div className="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0">
               <table className="w-full text-left border-collapse min-w-[600px]">
@@ -610,11 +918,14 @@ export default function AdminDashboard() {
                       onChange={(e) => setFormData({...formData, category: e.target.value})} 
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 md:p-3 mt-1 text-xs md:text-sm font-medium focus:outline-none focus:border-[#0284C7] cursor-pointer focus:ring-1 focus:ring-[#0284C7]"
                     >
-                      <option value="Villa">Villa / Homestay</option>
-                      <option value="Perahu">Perahu Motor</option>
-                      <option value="Alat">Wahana Air & Alat</option>
-                      <option value="Kuliner">Kuliner Seafood</option>
-                      <option value="Oleh-oleh">Oleh-oleh & Suvenir</option>
+                      {TOURISM_CATEGORIES.includes(formData.category) ? null : (
+                        <option value={formData.category}>{formData.category || 'Pilih kategori'}</option>
+                      )}
+                      <option value="Hutan">Wisata Hutan</option>
+                      <option value="Gunung">Wisata Gunung</option>
+                      <option value="Laut">Wisata Laut</option>
+                      <option value="Satwa Liar">Wisata Satwa Liar</option>
+                      <option value="Theme Park">Wisata Theme Park</option>
                     </select>
                   </div>
                   <div>
