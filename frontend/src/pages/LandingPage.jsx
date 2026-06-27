@@ -30,6 +30,25 @@ export default function LandingPage() {
   const pahawangImages = [fotoPahawang1, fotoPahawang2, fotoPahawang3];
   const [currentBgIndex, setCurrentBgIndex] = useState(0);
 
+  const [allDestinations, setAllDestinations] = useState([]); 
+  const [activeCategory, setActiveCategory] = useState('Semua');
+
+  useEffect(() => {
+    const fetchAllDestinations = async () => {
+      try {
+        const response = await axios.get('http://localhost:5000/api/assets');
+        setAllDestinations(response.data); 
+      } catch (error) {
+        console.error("Gagal ambil data:", error);
+      }
+    };
+    fetchAllDestinations();
+  }, []);
+
+  const filteredData = activeCategory === 'Semua' 
+    ? allDestinations 
+    : allDestinations.filter(item => item.category === activeCategory);
+
   useEffect(() => {
     const fetchPreviewProducts = async () => {
       try {
@@ -171,6 +190,8 @@ export default function LandingPage() {
             </div>
           </div>
         </header>
+
+        
 
         <section id="pesona" className="py-16 md:py-24 px-4 md:px-6 max-w-7xl mx-auto relative z-10">
           <div className="text-center mb-10 md:mb-16">
