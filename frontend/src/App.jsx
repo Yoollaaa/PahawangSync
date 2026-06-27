@@ -9,7 +9,7 @@ import CheckoutPage from './pages/CheckoutPage';
 import AdminLogin from './pages/AdminLogin';
 import AdminRegister from './pages/AdminRegister';
 import AdminDashboard from './pages/AdminDashboard';
-
+import ForgotPassword from './pages/ForgotPassword';
 
 function App() {
   return (
@@ -18,8 +18,10 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} /> 
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
+        
         <Route path="/admin" element={<AdminLogin />} />
         <Route path="/admin/register" element={<AdminRegister />} />
         <Route path="/dashboard-admin" element={<AdminDashboard />} />
