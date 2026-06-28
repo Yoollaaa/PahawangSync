@@ -10,6 +10,7 @@ import AdminLogin from './pages/AdminLogin';
 import AdminRegister from './pages/AdminRegister';
 import AdminDashboard from './pages/AdminDashboard';
 import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 function App() {
   return (
@@ -21,6 +22,8 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} /> 
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
+
         
         <Route path="/admin" element={<AdminLogin />} />
         <Route path="/admin/register" element={<AdminRegister />} />

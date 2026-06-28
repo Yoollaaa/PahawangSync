@@ -4,6 +4,7 @@ import pkg from 'pg';
 import midtransClient from 'midtrans-client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import nodemailer from 'nodemailer'; 
 
 const { Pool } = pkg;
 const app = express();
@@ -23,6 +24,68 @@ const pool = new Pool({
 pool.connect()
   .then(() => console.log('Database PostgreSQL sukses terhubung!'))
   .catch((err) => console.error('Gagal koneksi ke database:', err.stack));
+
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: '2315061003@students.unila.ac.id', 
+    pass: 'koyf ztqg dywu aldd' 
+  }
+});
+
+
+app.post('/api/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  try {
+    const checkUser = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    
+    if (checkUser.rows.length === 0) {
+      return res.status(404).json({ message: 'Email tidak ditemukan di sistem kami.' });
+    }
+
+    const user = checkUser.rows[0];
+    
+    const resetToken = jwt.sign(
+      { id: user.id, email: user.email }, 
+      'rahasia_reset_ecoloka', 
+      { expiresIn: '15m' }
+    );
+
+    const resetLink = `http://localhost:5173/reset-password/${resetToken}`;
+
+    const mailOptions = {
+      from: '"EcoLoka Lampung" <no-reply@ecolokalampung.com>',
+      to: email,
+      subject: 'Instruksi Reset Password - EcoLoka Lampung',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+          <h2 style="color: #0284c7; text-align: center;">Halo, ${user.name}!</h2>
+          <p style="color: #475569; font-size: 15px; text-align: center;">Kami menerima permintaan untuk mereset password akun Anda di platform PahawangSync/EcoLoka.</p>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${resetLink}" style="background-color: #0284c7; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Atur Ulang Password</a>
+          </div>
+          
+          <p style="color: #ef4444; font-size: 13px; text-align: center;">
+            <i>Tautan ini hanya berlaku selama 15 menit.</i>
+          </p>
+          <hr style="border-top: 1px solid #e2e8f0; margin: 20px 0;">
+          <p style="color: #94a3b8; font-size: 12px; text-align: center;">Jika Anda tidak merasa meminta reset password, abaikan saja email ini. Akun Anda tetap aman.</p>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    res.status(200).json({ message: 'Tautan reset sandi telah dikirim. Silakan cek email Anda.' });
+
+  } catch (error) {
+    console.error("Gagal mengirim email:", error);
+    res.status(500).json({ message: 'Terjadi kesalahan pada server saat mengirim email.' });
+  }
+});
+
+
 
 app.post('/api/register', async (req, res) => {
   const { name, email, phone, password, role } = req.body;
@@ -281,26 +344,6 @@ app.get('/api/dashboard-stats', async (req, res) => {
   } catch (error) { res.status(500).json({ error: "Gagal" }); }
 });
 
-app.put('/api/reservations/:id/confirm', async (req, res) => {
-  const { id } = req.params;
-  
-  try {
-    const result = await pool.query(
-      "UPDATE reservations SET status = 'Completed' WHERE id = $1 RETURNING *",
-      [id]
-    );
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: "Data pesanan tidak ditemukan di database." });
-    }
-    
-    res.status(200).json({ message: "Pesanan berhasil dikonfirmasi!", data: result.rows[0] });
-  } catch (error) {
-    console.error("❌ Error saat konfirmasi:", error.message);
-    res.status(500).json({ error: "Gagal mengkonfirmasi pesanan" });
-  }
-});
-
 app.post('/api/admin/register', async (req, res) => {
   const { name, email, password } = req.body;
   
@@ -353,6 +396,28 @@ app.post('/api/admin/login', async (req, res) => {
   } catch (error) {
     console.error("Error Login Admin:", error.message);
     res.status(500).json({ error: "Terjadi kesalahan pada server." });
+  }
+});
+
+
+app.post('/api/reset-password', async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  try {
+    const decoded = jwt.verify(token, 'rahasia_reset_ecoloka');
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    await pool.query(
+      'UPDATE users SET password = $1 WHERE id = $2',
+      [hashedPassword, decoded.id]
+    );
+
+    res.status(200).json({ message: 'Password berhasil diubah! Silakan login dengan password baru.' });
+  } catch (error) {
+    console.error("Error Reset Password:", error.message);
+    res.status(400).json({ message: 'Tautan reset sandi tidak valid atau sudah kedaluwarsa.' });
   }
 });
 

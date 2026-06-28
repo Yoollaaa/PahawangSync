@@ -50,17 +50,13 @@ export default function LoginPage() {
       className="min-h-screen flex items-center justify-center p-4 md:p-6 font-sans bg-cover bg-center relative"
       style={{ backgroundImage: `url(${bgLanding})` }}
     >
-      {/* Overlay Gelap agar background tidak menabrak form */}
       <div className="absolute inset-0 bg-[#0F172A]/50 backdrop-blur-sm z-0"></div>
 
-      {/* Card Form - Gaya Glassmorphism Premium */}
       <div className="bg-white/85 backdrop-blur-2xl rounded-[32px] md:rounded-[40px] w-full max-w-[420px] p-8 md:p-10 shadow-[0_20px_60px_rgba(0,0,0,0.4)] border border-white/60 relative z-10 overflow-hidden">
         
-        {/* Dekorasi Cahaya Halus di Pojok Card */}
         <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#0284C7] rounded-full blur-[60px] opacity-20 pointer-events-none"></div>
         <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-[#0EA5E9] rounded-full blur-[60px] opacity-10 pointer-events-none"></div>
 
-        {/* Tombol Kembali (Home) - Dipindah ke Kiri */}
         <Link 
           to="/" 
           className="absolute top-6 left-6 text-slate-500 hover:text-[#0284C7] bg-white/60 p-2.5 rounded-full transition-all hover:bg-white hover:scale-110 shadow-sm border border-white/50"
@@ -71,7 +67,6 @@ export default function LoginPage() {
           </svg>
         </Link>
 
-        {/* Header / Logo */}
         <div className="flex flex-col items-center justify-center mb-8 mt-2">
           <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-2xl italic bg-gradient-to-br from-[#0284C7] to-[#0369A1] text-white shadow-lg shadow-[#0284C7]/40 mb-4 border border-white/20">
             E
@@ -92,13 +87,11 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} className="space-y-5 relative z-10">
           
-          {/* Input Email dengan Ikon */}
           <div>
             <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-2 ml-1">
               Alamat Email
             </label>
             <div className="relative flex items-center">
-              {/* Ikon Surat */}
               <div className="absolute left-4 text-slate-400">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
               </div>
@@ -113,7 +106,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Input Password dengan Ikon Kiri & Kanan */}
           <div>
             <div className="flex justify-between items-center mb-2 ml-1 mr-1">
               <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block">
@@ -127,7 +119,6 @@ export default function LoginPage() {
               </Link>
             </div>
             <div className="relative flex items-center">
-              {/* Ikon Gembok */}
               <div className="absolute left-4 text-slate-400">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               </div>
@@ -141,7 +132,6 @@ export default function LoginPage() {
                 placeholder="Masukkan sandi rahasia" 
               />
               
-              {/* Tombol Toggle Password (Intip) */}
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
@@ -157,7 +147,6 @@ export default function LoginPage() {
             </div>
           </div>
           
-          {/* Tombol Login */}
           <button 
             disabled={isLoading} 
             type="submit" 

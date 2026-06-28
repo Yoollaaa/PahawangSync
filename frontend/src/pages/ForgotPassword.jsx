@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import bgLanding from '../assets/landingpage.jpeg';
+import axios from 'axios'; 
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');

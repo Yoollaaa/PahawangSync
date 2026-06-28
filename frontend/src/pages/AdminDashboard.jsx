@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { Scanner } from '@yudiel/react-qr-scanner';
+import bgLanding from '../assets/landingpage.jpeg';
+
 
 const TOURISM_CATEGORIES = ['Hutan', 'Gunung', 'Laut', 'Satwa Liar', 'Theme Park'];
 
@@ -317,10 +319,10 @@ export default function AdminDashboard() {
     },
   ];
 
-  return (
+ return (
     <div 
       className="min-h-screen text-slate-800 font-sans bg-cover bg-center bg-fixed"
-      style={{ backgroundImage: "url('https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?q=80&w=2070&auto=format&fit=crop')" }}
+      style={{ backgroundImage: `url(${bgLanding})` }}
     >
       <div className="min-h-screen bg-slate-50/60 backdrop-blur-sm">
         

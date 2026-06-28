@@ -4,7 +4,7 @@ import axios from 'axios';
 import ProductCard from '../components/ProductCard';
 import { QRCodeSVG } from 'qrcode.react';
 
-import bgIkan from '../assets/pahawang.jpg';
+import bgIkan from '../assets/landingpage.jpeg';
 
 const IconCart = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>;
 const IconTicket = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 12h20"/><path d="M6 9h.01"/><path d="M6 15h.01"/><path d="M18 9h.01"/><path d="M18 15h.01"/></svg>;
