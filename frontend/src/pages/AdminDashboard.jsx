@@ -296,6 +296,9 @@ export default function AdminDashboard() {
     { label: 'Completed', value: reservations.filter((item) => item.status === 'Completed').length, color: '#10B981' },
   ];
   const topCategories = [...categoryAnalytics].sort((a, b) => b.count - a.count);
+  const categoryBarMax = Math.max(...topCategories.map((item) => item.count), 1);
+  const categoryAxisMax = Math.max(5, Math.ceil(categoryBarMax / 5) * 5);
+  const categoryTicks = Array.from({ length: 6 }, (_, index) => Math.round((categoryAxisMax / 5) * index));
   const peakTrendDay = lastSevenDays.reduce((best, current) => (current.value > best.value ? current : best), lastSevenDays[0] || { label: '', value: 0 });
   const reservationTotal = Math.max(reservations.length, 1);
   const businessHealth = [
@@ -505,35 +508,60 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-[1.3fr_0.9fr] gap-4">
-                  <div className="rounded-[28px] bg-[#0F172A] text-white p-5 md:p-6 shadow-[0_18px_50px_rgba(15,23,42,0.25)] relative overflow-hidden">
-                    <div className="absolute inset-0 opacity-35 bg-[radial-gradient(circle_at_top_right,_rgba(14,165,233,0.35),_transparent_32%),radial-gradient(circle_at_bottom_left,_rgba(244,114,182,0.2),_transparent_30%)]"></div>
-                    <div className="relative z-10 flex items-start justify-between gap-4 mb-5">
-                      <div>
-                        <h4 className="font-black text-lg md:text-xl">Tren Booking 7 Hari</h4>
-                        <p className="text-white/65 text-sm mt-1">Jumlah unit yang dipesan dari kalender reservasi.</p>
+                  <div className="space-y-4">
+                    <div className="rounded-[28px] bg-white border border-white shadow-[0_12px_30px_rgba(15,23,42,0.07)] p-5 md:p-6 relative overflow-hidden">
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(56,189,248,0.14),_transparent_28%),radial-gradient(circle_at_bottom_left,_rgba(34,197,94,0.12),_transparent_32%)]"></div>
+                      <div className="relative z-10 flex items-start justify-between gap-4 mb-5">
+                        <div>
+                          <h4 className="font-black text-[#0F172A] text-lg md:text-xl">Tren Booking 7 Hari</h4>
+                          <p className="text-slate-500 text-sm mt-1">Jumlah unit yang dipesan dari kalender reservasi.</p>
+                        </div>
+                        <div className="rounded-2xl bg-slate-50 border border-slate-200 px-3 py-2 text-right">
+                          <p className="text-[10px] uppercase tracking-[0.25em] text-slate-400 font-bold">Peak day</p>
+                          <p className="text-lg font-black text-[#0F172A]">{peakTrendDay?.label || '-'}</p>
+                          <p className="text-xs text-slate-500">{peakTrendDay?.value || 0} unit</p>
+                        </div>
                       </div>
-                      <div className="rounded-2xl bg-white/10 border border-white/10 px-3 py-2 text-right backdrop-blur-sm">
-                        <p className="text-[10px] uppercase tracking-[0.25em] text-white/60 font-bold">Peak day</p>
-                        <p className="text-lg font-black">{peakTrendDay.label || '-'}</p>
-                        <p className="text-xs text-white/60">{peakTrendDay.value} unit</p>
-                      </div>
-                    </div>
 
-                    <div className="relative z-10 h-64 md:h-72">
-                      <svg viewBox="0 0 700 300" className="w-full h-full overflow-visible">
+                      <div className="relative z-10 w-full">
+                        <svg viewBox="0 0 700 300" className="w-full h-auto overflow-visible" preserveAspectRatio="xMidYMax meet">
                         <defs>
+                          <linearGradient id="trendBgGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#F8FAFC" stopOpacity="1" />
+                            <stop offset="100%" stopColor="#EEF2F7" stopOpacity="1" />
+                          </linearGradient>
                           <linearGradient id="trendLineGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#93C5FD" stopOpacity="0.95" />
-                            <stop offset="100%" stopColor="#22D3EE" stopOpacity="1" />
+                            <stop offset="0%" stopColor="#0284C7" stopOpacity="0.95" />
+                            <stop offset="100%" stopColor="#06B6D4" stopOpacity="1" />
                           </linearGradient>
                           <linearGradient id="trendAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#38BDF8" stopOpacity="0.35" />
+                            <stop offset="0%" stopColor="#38BDF8" stopOpacity="0.24" />
                             <stop offset="100%" stopColor="#38BDF8" stopOpacity="0.03" />
+                          </linearGradient>
+                          <linearGradient id="sunGlow" x1="0" y1="0" x2="1" y2="1">
+                            <stop offset="0%" stopColor="#FDE68A" stopOpacity="0.95" />
+                            <stop offset="100%" stopColor="#F59E0B" stopOpacity="0.2" />
+                          </linearGradient>
+                          <linearGradient id="hillGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#22C55E" stopOpacity="0.22" />
+                            <stop offset="100%" stopColor="#16A34A" stopOpacity="0.12" />
+                          </linearGradient>
+                          <linearGradient id="shoreGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#0EA5E9" stopOpacity="0.16" />
+                            <stop offset="100%" stopColor="#0284C7" stopOpacity="0.08" />
                           </linearGradient>
                         </defs>
 
+                        <rect x="0" y="0" width="700" height="300" rx="20" fill="url(#trendBgGradient)" />
+                        <circle cx="560" cy="66" r="34" fill="url(#sunGlow)" opacity="0.9" />
+                        <path d="M0 174 C 52 154 88 150 131 165 C 174 180 206 137 244 147 C 285 158 322 121 365 139 C 414 159 454 135 501 149 C 548 163 578 133 617 147 C 652 159 677 153 700 140 L700 218 L0 218 Z" fill="url(#hillGradient)" opacity="0.9" />
+                        <path d="M0 226 C 48 220 93 226 137 235 C 191 246 231 241 272 232 C 320 221 365 222 404 230 C 455 240 503 242 548 233 C 596 224 646 220 700 228 L700 300 L0 300 Z" fill="url(#shoreGradient)" opacity="0.85" />
+                        <path d="M46 205 C 92 196 136 212 180 205 C 223 198 268 184 312 193 C 356 202 402 213 446 205 C 489 197 536 182 580 192 C 619 201 662 207 694 199" fill="none" stroke="rgba(15,23,42,0.1)" strokeWidth="2" strokeLinecap="round" />
+                        <path d="M538 190 C 553 176 571 171 589 180 C 607 189 615 202 617 214 L533 214 C 531 205 531 197 538 190 Z" fill="#164E63" opacity="0.72" />
+                        <path d="M546 176 C 549 164 557 156 568 152 C 571 159 572 166 572 173" fill="none" stroke="rgba(15,23,42,0.2)" strokeWidth="3" strokeLinecap="round" />
+
                         {[0, 1, 2, 3].map((line) => (
-                          <line key={line} x1="40" y1={50 + line * 55} x2="660" y2={50 + line * 55} stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
+                          <line key={line} x1="40" y1={50 + line * 55} x2="660" y2={50 + line * 55} stroke="rgba(15,23,42,0.12)" strokeWidth="1" />
                         ))}
 
                         {(() => {
@@ -541,6 +569,7 @@ export default function AdminDashboard() {
                           const chartHeight = 200;
                           const originX = 40;
                           const originY = 245;
+                          if (!lastSevenDays || lastSevenDays.length === 0) return null;
                           const points = lastSevenDays.map((day, index) => {
                             const x = originX + (chartWidth / (lastSevenDays.length - 1)) * index;
                             const y = originY - (day.value / trendMax) * chartHeight;
@@ -555,15 +584,66 @@ export default function AdminDashboard() {
                               <path d={linePath} fill="none" stroke="url(#trendLineGradient)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
                               {points.map((point) => (
                                 <g key={`${point.label}-${point.x}`}>
-                                  <circle cx={point.x} cy={point.y} r="8" fill="#0F172A" stroke="#7DD3FC" strokeWidth="4" />
-                                  <text x={point.x} y="277" textAnchor="middle" fill="rgba(255,255,255,0.78)" fontSize="13" fontWeight="700">{point.label}</text>
-                                  <text x={point.x} y={point.y - 18} textAnchor="middle" fill="#E0F2FE" fontSize="12" fontWeight="700">{point.value}</text>
+                                  {point.value === trendMax ? (
+                                    <circle cx={point.x} cy={point.y} r="15" fill="rgba(253,224,71,0.16)" />
+                                  ) : null}
+                                  <circle cx={point.x} cy={point.y} r="8" fill={point.value === trendMax ? '#FDE68A' : '#F8FAFC'} stroke={point.value === trendMax ? '#FBBF24' : '#0284C7'} strokeWidth="4" />
+                                  <text x={point.x} y="277" textAnchor="middle" fill="#475569" fontSize="13" fontWeight="700">{point.label}</text>
+                                  <text x={point.x} y={point.y - 18} textAnchor="middle" fill={point.value === trendMax ? '#B45309' : '#0F172A'} fontSize="12" fontWeight="700">{point.value}</text>
                                 </g>
                               ))}
                             </>
                           );
                         })()}
                       </svg>
+                    </div>
+                    </div>
+
+                    <div className="rounded-[28px] bg-white border border-white shadow-[0_12px_30px_rgba(15,23,42,0.07)] p-5 md:p-6">
+                      <div className="flex items-center justify-between gap-3 mb-4">
+                        <div>
+                          <h4 className="font-black text-[#0F172A]">Top Pemesanan Kategori Wisata</h4>
+                          <p className="text-xs text-slate-500 mt-1">Perbandingan jumlah unit terpesan per kategori.</p>
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Diagram</span>
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3 md:p-4 overflow-x-auto">
+                        <svg viewBox="0 0 720 270" className="w-full h-auto min-w-[640px]">
+                          <rect x="0" y="0" width="720" height="270" fill="white" />
+
+                          {topCategories.map((item, index) => {
+                            const y = 32 + index * 44;
+                            return (
+                              <line key={`row-${item.category}`} x1="120" y1={y + 20} x2="680" y2={y + 20} stroke="rgba(148,163,184,0.22)" strokeWidth="1" />
+                            );
+                          })}
+
+                          {categoryTicks.map((tick) => {
+                            const x = 120 + (tick / categoryAxisMax) * 560;
+                            return (
+                              <g key={`tick-${tick}`}>
+                                <line x1={x} y1="18" x2={x} y2="246" stroke="rgba(148,163,184,0.3)" strokeWidth="1" />
+                                <text x={x} y="260" textAnchor="middle" fill="#64748B" fontSize="12" fontWeight="600">{tick}</text>
+                              </g>
+                            );
+                          })}
+
+                          {topCategories.map((item, index) => {
+                            const y = 32 + index * 44;
+                            const width = (item.count / categoryAxisMax) * 560;
+                            const accent = ['#38BDF8', '#F97316', '#22C55E', '#8B5CF6', '#EC4899'][index % 5];
+
+                            return (
+                              <g key={`bar-${item.category}`}>
+                                <text x="112" y={y + 24} textAnchor="end" fill="#334155" fontSize="13" fontWeight="700">{item.category}</text>
+                                <rect x="120" y={y + 8} width={width} height="24" rx="8" fill={accent} opacity="0.9" />
+                                <text x={Math.min(684, 126 + width)} y={y + 24} fill="#0F172A" fontSize="12" fontWeight="700">{item.count}</text>
+                              </g>
+                            );
+                          })}
+                        </svg>
+                      </div>
                     </div>
                   </div>
 
